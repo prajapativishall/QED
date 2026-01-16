@@ -1,0 +1,151 @@
+/* Red/White/Black Theme Variables */
+:root {
+  --brand-red: #D32F2F;
+  --brand-red-hover: #B71C1C;
+  --brand-black: #0f172a;
+  --brand-gray: #64748b;
+}
+
+.login {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  background-color: #f8fafc; /* Light gray background to contrast with white card */
+}
+
+/* Remove overlay */
+.login__overlay {
+  display: none;
+}
+
+.login__card {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-top: 4px solid var(--brand-red); /* Red accent on top */
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.login__brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.login-logo {
+  height: 80px !important;
+  max-height: 80px !important;
+  width: auto !important;
+  object-fit: contain;
+  margin: 0 auto;
+  display: block;
+}
+
+.login__subtitle {
+  color: var(--brand-gray);
+  font-size: 1rem;
+  text-align: center;
+  margin-top: -1rem;
+  font-weight: 500;
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--brand-black);
+}
+
+.field__input {
+  padding: 0.75rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  color: var(--brand-black);
+  background: #ffffff;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.field__input:focus {
+  border-color: var(--brand-red);
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);
+}
+
+.form__error {
+  background-color: #fef2f2;
+  border: 1px solid #fee2e2;
+  color: var(--brand-red);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+}
+
+.login__button {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background-color: var(--brand-red);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.login__button:hover {
+  background-color: var(--brand-red-hover);
+}
+
+/* Password Toggle Styles */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper .field__input {
+  width: 100%;
+  padding-right: 2.5rem; /* Space for the icon */
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--brand-gray);
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.password-toggle:hover {
+  color: var(--brand-black);
+  background-color: #f1f5f9;
+}

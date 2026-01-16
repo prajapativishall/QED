@@ -1,0 +1,200 @@
+{% extends "qed_utility/base.html" %}
+{% load static %}
+{% load roles %}
+
+{% block title %}Bulk Delete | QED Utility{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/delete.css' %}?v=1.1">
+{% endblock %}
+
+{% block content %}
+<div class="delete-container">
+    <div class="delete-header-row">
+        <div class="header-content">
+            <h1>Bulk Process Delete</h1>
+            <p>Upload an Excel file to bulk delete process instances in QED.</p>
+        </div>
+        <a href="{% static 'assets/bulk_delete.xlsx' %}" class="btn-download" download>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download Template
+        </a>
+    </div>
+
+    <div class="delete-card">
+        <form id="deleteForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="file-drop-area" id="dropArea">
+                <div class="upload-icon-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                </div>
+                <span class="file-msg">Drag & drop your Excel file here or click to browse</span>
+                <input type="file" name="file" id="fileInput" accept=".xlsx,.xls" required class="file-input">
+                <div class="file-name" id="fileName"></div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-delete" id="deleteBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    Start Bulk Delete
+                </button>
+            </div>
+        </form>
+
+        <div id="result" class="result-section" style="display:none;">
+            <div class="result-header">
+                <h3>Delete Results</h3>
+                <button onclick="exportReport()" class="btn-export">
+                    <span>⬇️</span> Export Report
+                </button>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <b>Total</b>
+                    <span id="total-count">-</span>
+                </div>
+                <div class="stat-item success">
+                    <b>Deleted</b>
+                    <span id="success-count">-</span>
+                </div>
+                <div class="stat-item error">
+                    <b>Failed</b>
+                    <span id="failed-count">-</span>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="result-table">
+                    <thead>
+                        <tr>
+                            <th>Process Instance ID</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="delete-footer">
+        <a href="{% url 'dashboard' %}" class="back-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<script>
+    let lastResults = [];
+
+    // File Input UI enhancement
+    const fileInput = document.getElementById('fileInput');
+    const dropArea = document.getElementById('dropArea');
+    const fileName = document.getElementById('fileName');
+
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            fileName.textContent = this.files[0].name;
+            dropArea.classList.add('has-file');
+        } else {
+            fileName.textContent = '';
+            dropArea.classList.remove('has-file');
+        }
+    });
+
+    document.getElementById("deleteForm").onsubmit = async function(e) {
+        e.preventDefault();
+        
+        const btn = document.getElementById("deleteBtn");
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Processing...';
+        
+        const resultDiv = document.getElementById("result");
+        resultDiv.style.display = "none";
+
+        const formData = new FormData(this);
+        
+        try {
+            const response = await fetch("{% url 'bulk_delete_execute' %}", {
+                method: "POST",
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                lastResults = data.results || [];
+                
+                document.getElementById("total-count").innerText = data.total;
+                document.getElementById("success-count").innerText = data.deleted;
+                document.getElementById("failed-count").innerText = data.failed;
+                
+                const tbody = document.getElementById("results-body");
+                let tableRows = lastResults.map(r => {
+                    const statusClass = r.status.includes("DELETED") ? "status-success" : "status-error";
+                    return `
+                        <tr>
+                            <td>${r.process_instance_id}</td>
+                            <td><span class="badge ${statusClass}">${r.status}</span></td>
+                            <td>${r.reason || '-'}</td>
+                        </tr>
+                    `;
+                }).join("");
+                
+                tbody.innerHTML = tableRows;
+                resultDiv.style.display = "block";
+            } else {
+                alert("Error: " + data.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("An error occurred while uploading the file.");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    };
+
+    function exportReport() {
+        if (!lastResults || lastResults.length === 0) return;
+        
+        const headers = ["Process Instance ID", "Status", "Reason"];
+        const csvContent = [
+            headers.join(","),
+            ...lastResults.map(r => {
+                const reason = r.reason ? r.reason.replace(/,/g, " ") : "";
+                return `${r.process_instance_id},${r.status},${reason}`;
+            })
+        ].join("\n");
+        
+        const blob = new Blob([csvContent], { type: "text/csv" });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `bulk_delete_report_${new Date().toISOString().slice(0,19).replace(/:/g,"-")}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+</script>
+{% endblock %}

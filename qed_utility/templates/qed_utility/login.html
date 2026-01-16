@@ -1,0 +1,65 @@
+{% extends "qed_utility/base.html" %}
+{% load static %}
+
+{% block title %}Login | QED Utility{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/login.css' %}?v=2.2" />
+{% endblock %}
+
+{% block login_content %}
+<div class="login">
+  <div class="login__overlay"></div>
+  <div class="login__card">
+    <div class="login__brand">
+      <img src="{% static 'assets/qed_logo.png' %}" alt="QED Utility" class="login-logo" style="height: 80px; width: auto;" />
+    </div>
+    <div class="login__subtitle">Sign in</div>
+
+    <form method="post" class="login__form" autocomplete="on">
+      {% csrf_token %}
+
+      <label class="field">
+        <span class="field__label">Username</span>
+        <input class="field__input" type="text" name="username" required autofocus />
+      </label>
+
+      <label class="field">
+        <span class="field__label">Password</span>
+        <div class="password-wrapper">
+          <input class="field__input" type="password" name="password" id="passwordInput" required />
+          <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="Show password">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+      </label>
+
+      {% if form.errors %}
+        <div class="form__error">Invalid username or password.</div>
+      {% endif %}
+
+      <button class="login__button" type="submit">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function togglePassword() {
+  const input = document.getElementById('passwordInput');
+  const btn = document.querySelector('.password-toggle');
+  
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-off-icon"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+    btn.setAttribute('aria-label', 'Hide password');
+  } else {
+    input.type = 'password';
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+    btn.setAttribute('aria-label', 'Show password');
+  }
+}
+</script>
+{% endblock %}

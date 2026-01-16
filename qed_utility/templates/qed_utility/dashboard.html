@@ -1,0 +1,510 @@
+{% extends "qed_utility/base.html" %}
+{% load static %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Ensure Chart is loaded
+  if (typeof Chart !== 'undefined') {
+    // Updated for Light Theme
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.borderColor = '#e2e8f0';
+    if (Chart.defaults.font) {
+        Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+    }
+
+    const commonOptions = {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: '#64748b' },
+          grid: { display: false } // Cleaner look as per image
+        },
+        y: {
+          ticks: { color: '#64748b' },
+          grid: { color: '#f1f5f9', borderDash: [4, 4] }
+        }
+      }
+    };
+
+    const circleCtx = document.getElementById('circleChart');
+    let circleChart = null;
+    if (circleCtx) {
+        circleChart = new Chart(circleCtx, {
+          type: 'bar',
+          data: {
+            labels: ['Pending', 'Completed'],
+            datasets: [{
+              data: [{{ circle_stats.Pending|default:0 }}, {{ circle_stats.Completed|default:0 }}],
+              backgroundColor: ['#f59e0b', '#10b981'], // Yellow, Green
+              borderWidth: 0,
+              borderRadius: 4,
+              barPercentage: 0.6
+            }]
+          },
+          options: commonOptions
+        });
+    }
+
+    const designCtx = document.getElementById('designChart');
+    let designChart = null;
+    if (designCtx) {
+        designChart = new Chart(designCtx, {
+          type: 'bar',
+          data: {
+            labels: ['Pending', 'Completed'],
+            datasets: [{
+              data: [{{ design_stats.Pending|default:0 }}, {{ design_stats.Completed|default:0 }}],
+              backgroundColor: ['#f59e0b', '#10b981'], // Yellow, Green
+              borderWidth: 0,
+              borderRadius: 4,
+              barPercentage: 0.6
+            }]
+          },
+          options: commonOptions
+        });
+    }
+
+    const userCtx = document.getElementById('userTaskChart');
+    let userTaskChart = null;
+    if (userCtx) {
+        userTaskChart = new Chart(userCtx, {
+          type: 'bar',
+          data: {
+            labels: ['Pending', 'Completed'],
+            datasets: [{
+              data: [0, 0],
+              backgroundColor: ['#f59e0b', '#10b981'],
+              borderWidth: 0,
+              borderRadius: 4,
+              barPercentage: 0.6
+            }]
+          },
+          options: commonOptions
+        });
+    }
+
+    window.updateCharts = function(type, data) {
+        if (type === 'circle' && circleChart) {
+            circleChart.data.datasets[0].data = [data.Pending, data.Completed];
+            circleChart.update();
+        } else if (type === 'design' && designChart) {
+            designChart.data.datasets[0].data = [data.Pending, data.Completed];
+            designChart.update();
+        } else if (type === 'user' && userTaskChart) {
+            userTaskChart.data.datasets[0].data = [data.pending, data.completed];
+            userTaskChart.update();
+        }
+    };
+  } else {
+    console.error("Chart.js library not loaded.");
+    // Fallback or prevent crash
+    window.updateCharts = function() {}; 
+  }
+
+  function applyCh() {
+    const form = document.getElementById('chForm');
+    if (!form) return;
+    const p = new URLSearchParams(new FormData(form));
+    fetch('/api/ch_summary?' + p.toString())
+      .then(r => r.json())
+      .then(d => {
+        const elPending = document.getElementById('chPending');
+        const elCompleted = document.getElementById('chCompleted');
+        const elFlag = document.getElementById('chFlag');
+        const elFlagDiv = document.getElementById('chFlagDiv');
+
+        if (elPending) elPending.textContent = d.Pending;
+        if (elCompleted) elCompleted.textContent = d.Completed;
+        if (elFlag) elFlag.textContent = d.Flag || 0;
+        if (elFlagDiv) elFlagDiv.style.display = d.Flag > 0 ? 'block' : 'none';
+        
+        if (typeof window.updateCharts === 'function') {
+            window.updateCharts('circle', d);
+        }
+      })
+      .catch(err => console.error("Error fetching CH summary:", err));
+  }
+
+  function applyDt() {
+    const form = document.getElementById('dtForm');
+    if (!form) return;
+    const p = new URLSearchParams(new FormData(form));
+    fetch('/api/dt_summary?' + p.toString())
+      .then(r => r.json())
+      .then(d => {
+        const elPending = document.getElementById('dtPending');
+        const elCompleted = document.getElementById('dtCompleted');
+        
+        if (elPending) elPending.textContent = d.Pending;
+        if (elCompleted) elCompleted.textContent = d.Completed;
+        
+        if (typeof window.updateCharts === 'function') {
+            window.updateCharts('design', d);
+        }
+      })
+      .catch(err => console.error("Error fetching DT summary:", err));
+  }
+
+  // User Activity Dashboard Logic
+  let allUsers = [];
+  let selectedUserId = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+      // Load Users
+      function loadUsers() {
+          fetch('/api/flowable-users')
+              .then(r => r.json())
+              .then(users => { 
+                  allUsers = users; 
+                  console.log("Users loaded:", allUsers.length);
+              })
+              .catch(err => console.error("Error loading users:", err));
+      }
+      loadUsers();
+          
+      // Load Activity Types for Filter
+      fetch('/api/activity-types')
+          .then(r => r.json())
+          .then(types => {
+              const sel = document.getElementById('activityFilter');
+              if (sel) {
+                  // Clear existing options except first
+                  sel.innerHTML = '<option value="">All Activities</option>';
+                  types.forEach(t => {
+                      const opt = document.createElement('option');
+                      opt.value = t;
+                      opt.textContent = t;
+                      sel.appendChild(opt);
+                  });
+              }
+          })
+          .catch(err => console.error("Error loading activity types:", err));
+
+      // Load Site IDs for Datalist
+      fetch('/api/site-ids')
+          .then(r => r.json())
+          .then(sites => {
+              const dl = document.getElementById('siteIdList');
+              if (dl) {
+                  dl.innerHTML = '';
+                  // Add explicit "All Site IDs" option
+                  const allOpt = document.createElement('option');
+                  allOpt.value = "All Site IDs";
+                  dl.appendChild(allOpt);
+                  
+                  sites.forEach(s => {
+                      const opt = document.createElement('option');
+                      opt.value = s;
+                      dl.appendChild(opt);
+                  });
+              }
+          })
+          .catch(err => console.error("Error loading site IDs:", err));
+      
+      const searchInput = document.getElementById('userSearchInput');
+      const dropdown = document.getElementById('userDropdown');
+      
+      if (searchInput && dropdown) {
+          // Show users on focus/click
+          const showDropdown = () => {
+             if (searchInput.value.trim() === '') {
+                 if (allUsers.length === 0) {
+                     dropdown.innerHTML = '<div class="user-dropdown-item" style="color: #94a3b8;">Loading users...</div>';
+                     dropdown.style.display = 'block';
+                     loadUsers(); // Retry load
+                     return;
+                 }
+                 populateUserDropdown(allUsers);
+                 dropdown.style.display = 'block';
+             }
+          };
+
+          searchInput.addEventListener('focus', showDropdown);
+          searchInput.addEventListener('click', showDropdown);
+
+          searchInput.addEventListener('input', (e) => {
+              const val = e.target.value.toLowerCase();
+              dropdown.innerHTML = '';
+              
+              if (allUsers.length === 0) loadUsers();
+
+              const filtered = allUsers.filter(u => 
+                  (u.name && u.name.toLowerCase().includes(val)) || 
+                  (u.id && u.id.toLowerCase().includes(val))
+              );
+              
+              if (filtered.length > 0) {
+                  populateUserDropdown(filtered);
+                  dropdown.style.display = 'block';
+              } else {
+                  dropdown.innerHTML = '<div class="user-dropdown-item" style="color: #94a3b8;">No users found</div>';
+                  dropdown.style.display = 'block';
+              }
+          });
+
+          // Hide dropdown when clicking outside
+          document.addEventListener('click', (e) => {
+              if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                  dropdown.style.display = 'none';
+              }
+          });
+      }
+  });
+
+  function populateUserDropdown(users) {
+      const dropdown = document.getElementById('userDropdown');
+      dropdown.innerHTML = '';
+      users.slice(0, 50).forEach(u => { // Limit to 50 results for performance
+          const div = document.createElement('div');
+          div.className = 'user-dropdown-item';
+          div.textContent = `${u.name} (${u.id})`;
+          div.onclick = () => selectUser(u);
+          dropdown.appendChild(div);
+      });
+  }
+
+  function selectUser(user) {
+      const searchInput = document.getElementById('userSearchInput');
+      const dropdown = document.getElementById('userDropdown');
+      const label = document.getElementById('selectedUserLabel');
+      
+      selectedUserId = user.id;
+      searchInput.value = `${user.name} (${user.id})`;
+      dropdown.style.display = 'none';
+      label.textContent = `Tasks for: ${user.name}`;
+      
+      // Clear filters on new user select? Optional.
+      // document.getElementById('siteFilter').value = '';
+      // document.getElementById('activityFilter').value = '';
+      
+      fetchUserTasks();
+  }
+
+  function fetchUserTasks() {
+      if (!selectedUserId) return;
+      
+      let siteVal = document.getElementById('siteFilter').value;
+      const actVal = document.getElementById('activityFilter').value;
+      
+      // Handle "All Site IDs" logic
+      if (siteVal === "All Site IDs") siteVal = "";
+
+      const tbody = document.querySelector('#activityTable tbody');
+      tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+      
+      const params = new URLSearchParams({
+          user: selectedUserId,
+          site: siteVal,
+          activity: actVal
+      });
+      
+      fetch(`/api/user-tasks?${params.toString()}`)
+          .then(r => r.json())
+          .then(data => {
+              // Update Summary Cards
+              document.getElementById('taskCompletedCount').textContent = data.summary.completed;
+              document.getElementById('taskPendingCount').textContent = data.summary.pending;
+              
+              if (window.updateCharts) {
+                  window.updateCharts('user', data.summary);
+              }
+
+              // Update Table
+              tbody.innerHTML = '';
+              if (data.tasks.length === 0) {
+                  tbody.innerHTML = '<tr><td colspan="5">No tasks found matching criteria.</td></tr>';
+                  return;
+              }
+              
+              data.tasks.forEach(task => {
+                  const tr = document.createElement('tr');
+                  tr.innerHTML = `
+                      <td>${task.name}</td>
+                      <td>${task.siteid || '-'}</td>
+                      <td>${task.activity || '-'}</td>
+                      <td><span class="badge ${task.status.toLowerCase()}">${task.status}</span></td>
+                      <td>${task.date}</td>
+                  `;
+                  tbody.appendChild(tr);
+              });
+          })
+          .catch(err => {
+              console.error("Error fetching tasks:", err);
+              tbody.innerHTML = '<tr><td colspan="5">Error loading data.</td></tr>';
+          });
+  }
+</script>
+{% endblock %}
+
+
+{% block title %}Dashboard | QED Utility{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=2.0" />
+{% endblock %}
+
+{% block content %}
+<section class="dashboard-panels">
+
+  <!-- ================= SURVEY DASHBOARD ================= -->
+  <div class="dashboard-card">
+    <h3>Survey Dashboard</h3>
+
+    <form id="chForm" onsubmit="return false;">
+      <div class="field-group">
+        <label>Start Date</label>
+        <input type="date" name="ch_start">
+      </div>
+
+      <div class="field-group">
+        <label>End Date</label>
+        <input type="date" name="ch_end">
+      </div>
+
+      <div class="field-group full-width">
+        <label>Circle</label>
+        <select name="ch_circle">
+          <option value="">All Circles</option>
+          {% for c in circles %}
+            <option value="{{ c }}">{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field-group full-width">
+        <label>Activity Type</label>
+        <select name="ch_activity">
+          <option value="">All Activities</option>
+          {% for a in activity_list %}
+            <option value="{{ a }}">{{ a }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="button" class="btn-update" onclick="applyCh()">Update Dashboard</button>
+    </form>
+
+    <div class="dashboard-metrics">
+      <div class="metrics-chart">
+         <canvas id="circleChart" height="150"></canvas>
+      </div>
+      <div class="metrics-legend">
+        <div class="legend-item"><span class="dot pending"></span> Pending <strong id="chPending">{{ circle_stats.Pending }}</strong></div>
+        <div class="legend-item"><span class="dot completed"></span> Completed <strong id="chCompleted">{{ circle_stats.Completed }}</strong></div>
+      </div>
+      
+      <div id="chFlagDiv" class="dashboard-flag" style="display: {{ circle_stats.Flag|yesno:'block,none' }};">
+        ⚑ Allocation Date Missing: <strong id="chFlag">{{ circle_stats.Flag }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DESIGN DASHBOARD ================= -->
+  <div class="dashboard-card">
+    <h3>Design Dashboard</h3>
+
+    <form id="dtForm" onsubmit="return false;">
+      <div class="field-group">
+        <label>Start Date</label>
+        <input type="date" name="dt_start">
+      </div>
+
+      <div class="field-group">
+        <label>End Date</label>
+        <input type="date" name="dt_end">
+      </div>
+
+      <div class="field-group full-width">
+        <label>Circle</label>
+        <select name="dt_circle">
+          <option value="">All Circles</option>
+          {% for c in circles %}
+            <option value="{{ c }}">{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field-group full-width">
+        <label>Activity Type</label>
+        <select name="dt_activity">
+          <option value="">All Activities</option>
+          {% for a in activity_list %}
+            <option value="{{ a }}">{{ a }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="button" class="btn-update" onclick="applyDt()">Update Dashboard</button>
+    </form>
+
+    <div class="dashboard-metrics">
+      <div class="metrics-chart">
+         <canvas id="designChart" style="max-height: 140px;"></canvas>
+      </div>
+      <div class="metrics-legend">
+        <div class="legend-item"><span class="dot pending-design"></span> Pending <strong id="dtPending">{{ design_stats.Pending }}</strong></div>
+        <div class="legend-item"><span class="dot completed-design"></span> Completed <strong id="dtCompleted">{{ design_stats.Completed }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- User Activity Section -->
+<section class="user-activity-dashboard">
+    <div class="user-search-container">
+        <h3>User Task Dashboard</h3>
+        <p class="subtitle">Search for a user to see their task activity.</p>
+        
+        <div class="search-row">
+            <div class="search-group">
+                <input type="text" id="userSearchInput" placeholder="Search User (Name or ID)..." autocomplete="off">
+                <div id="userDropdown" class="user-dropdown"></div>
+            </div>
+            
+            <div class="filter-group">
+                <input type="text" id="siteFilter" list="siteIdList" placeholder="Filter Site ID..." oninput="fetchUserTasks()">
+                <datalist id="siteIdList"></datalist>
+                
+                <select id="activityFilter" onchange="fetchUserTasks()">
+                    <option value="">All Activities</option>
+                </select>
+                <button class="btn-primary" onclick="fetchUserTasks()">Apply</button>
+            </div>
+        </div>
+        
+        <h4 id="selectedUserLabel" style="margin-top: 20px;">No user selected</h4>
+        
+        <div class="dashboard-metrics" style="margin: 20px 0; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px;">
+            <div class="user-metrics-chart">
+                 <canvas id="userTaskChart" style="max-height: 250px;"></canvas>
+            </div>
+            <div class="metrics-legend" style="margin-top: 15px;">
+                <div class="legend-item"><span class="dot pending"></span> Pending <strong id="taskPendingCount">0</strong></div>
+                <div class="legend-item"><span class="dot completed"></span> Completed <strong id="taskCompletedCount">0</strong></div>
+            </div>
+        </div>
+
+        <div class="results-table-container">
+          <table class="results-table" id="activityTable">
+            <thead>
+              <tr>
+                <th>Task Name</th>
+                <th>Site ID</th>
+                <th>Activity Type</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="5" style="text-align: center; color: #64748b;">Select a user to view data</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

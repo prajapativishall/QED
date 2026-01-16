@@ -1,0 +1,277 @@
+/* Delete Page Styles - based on upload.css for consistency */
+
+:root {
+  --brand-red: #D32F2F;
+  --brand-red-hover: #B71C1C;
+  --brand-green: #10b981;
+  --brand-green-hover: #059669;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --radius: 8px;
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.delete-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* Header Row Layout */
+.delete-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.header-content h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem 0;
+}
+
+.header-content p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* Download Template Button */
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  background-color: #f8fafc;
+  color: var(--text-primary);
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.btn-download:hover {
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+/* Main Card */
+.delete-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  padding: 3rem;
+  border: 1px solid var(--border-color);
+}
+
+/* File Drop Area */
+.file-drop-area {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width: 100%;
+  padding: 4rem 2rem;
+  border: 2px dashed #cbd5e1;
+  border-radius: var(--radius);
+  transition: 0.2s;
+  background-color: #f8fafc;
+  cursor: pointer;
+  margin-bottom: 2rem;
+  box-sizing: border-box;
+}
+
+.file-drop-area:hover, .file-drop-area.has-file {
+  border-color: var(--brand-red);
+  background-color: #fff5f5;
+}
+
+.upload-icon-wrapper {
+  color: #94a3b8;
+  margin-bottom: 1rem;
+}
+
+.file-msg {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.file-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-name {
+  margin-top: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Action Buttons */
+.form-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.btn-delete {
+  background-color: var(--brand-red);
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.btn-delete:hover {
+  background-color: var(--brand-red-hover);
+}
+
+.btn-delete:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Results Section */
+.result-section {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 2rem;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.btn-export {
+  background-color: var(--brand-green);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.btn-export:hover {
+  background-color: var(--brand-green-hover);
+}
+
+.stats-grid {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: var(--radius);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-item b {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+}
+
+.stat-item span {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-item.success span { color: var(--brand-green); }
+.stat-item.error span { color: var(--brand-red); }
+
+.table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.result-table th, .result-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.result-table th {
+  background-color: #f8fafc;
+  position: sticky;
+  top: 0;
+  font-weight: 600;
+  color: var(--text-secondary);
+  z-index: 10;
+}
+
+.badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-success {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-error {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+/* Footer Link */
+.delete-footer {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.back-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.back-link:hover {
+  color: var(--text-primary);
+}

@@ -1,0 +1,184 @@
+:root {
+  --bg-app: #eef2f6; /* Light geometric background placeholder */
+  --bg-card: #ffffff;
+  --bg-inner: #f8fafc; /* Slightly darker for inner cards */
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --primary: #2563eb; /* Royal Blue */
+  --primary-hover: #1d4ed8;
+  --border: #e2e8f0;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --radius-lg: 16px;
+  --radius-md: 8px;
+
+  /* Compatibility Aliases */
+  --surface: var(--bg-card);
+  --text: var(--text-main);
+  --muted: var(--text-muted);
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--text-main);
+  background: var(--bg-app);
+  /* Geometric pattern simulation */
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%) !important;
+  background-attachment: fixed;
+}
+
+/* App Layout */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center; /* Center vertically if content is short */
+  padding: 1rem;
+  padding-top: 5rem; /* Space for fixed navbar */
+  box-sizing: border-box;
+  overflow: hidden; /* Prevent body scroll if content fits */
+}
+
+.app-card {
+  width: 100%;
+  max-width: 1200px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: calc(100vh - 6rem); /* Constraint height */
+}
+
+/* Navbar */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: #bc0707;
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  z-index: 1000;
+  height: 64px;
+}
+
+.navbar-content {
+  max-width: 1200px; /* Match app-card max-width for alignment */
+  margin: 0 auto;
+  height: 100%;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #000;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 3rem; /* Space between logo and links */
+}
+
+.app-logo {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  
+  
+}
+
+.app-logo img, .logo-img {
+  height: 40px !important;
+  max-height: 40px !important;
+  width: auto !important;
+  object-fit: contain;
+  max-width: 150px;
+  border-radius: 2px;
+  
+}
+
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
+  height: 64px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.nav-link:hover {
+  color: #ffffff;
+}
+
+.nav-link.active {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+  font-weight: 600;
+}
+
+.app-user-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.btn-logout {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.875rem;
+  transition: color 0.2s;
+}
+
+.btn-logout:hover {
+  color: #ffffff;
+}
+
+/* Main Content Area */
+.app-content {
+  padding: 1.5rem;
+  flex: 1;
+  background: var(--bg-card);
+  overflow-y: auto;
+}
+
+/* Messages */
+.messages {
+  padding: 1rem 2rem;
+}
+.message {
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+.message--success { background: #dcfce7; color: #166534; }
+.message--error { background: #fee2e2; color: #991b1b; }
+.message--warning { background: #fef3c7; color: #92400e; }
+.message--info { background: #dbeafe; color: #1e40af; }

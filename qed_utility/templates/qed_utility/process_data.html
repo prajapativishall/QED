@@ -1,0 +1,176 @@
+{% extends "qed_utility/base.html" %}
+{% load static %}
+
+{% block title %}Process Data Viewer | QED Utility{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/export.css' %}?v=1.0" />
+<style>
+  .export-container {
+    max-width: 1200px;
+  }
+
+  .process-table-container {
+    margin-top: 2.5rem;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding-bottom: 1rem;
+  }
+  .process-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+  .process-filters label { font-size: 0.9rem; font-weight: 600; color: #0f172a; display: block; margin-bottom: 0.25rem; }
+  .process-filters input[type="text"] { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; }
+  table.process-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  table.process-table thead tr { background-color: #f8fafc; }
+  table.process-table th, table.process-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e7eb; text-align: left; white-space: nowrap; }
+  table.process-table tbody tr:nth-child(even) { background-color: #f9fafb; }
+  .process-empty { margin-top: 1rem; color: #64748b; font-size: 0.9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="export-container">
+  <div class="export-header">
+    <h1>Process Data Viewer</h1>
+    <p>View QED process data with interactive filters.</p>
+  </div>
+  <div class="export-card">
+    <div class="process-filters">
+      <div>
+        <label for="filter_jobid">QACA Job ID</label>
+        <input type="text" id="filter_jobid" list="jobid_list" placeholder="Type or select Job ID" />
+        <datalist id="jobid_list"></datalist>
+      </div>
+      <div>
+        <label for="filter_siteid">Site ID</label>
+        <input type="text" id="filter_siteid" list="siteid_list" placeholder="Type or select Site ID" />
+        <datalist id="siteid_list"></datalist>
+      </div>
+      <div>
+        <label for="filter_circle">Circle</label>
+        <input type="text" id="filter_circle" list="circle_list" placeholder="Type or select Circle" />
+        <datalist id="circle_list"></datalist>
+      </div>
+      <div>
+        <label for="filter_activity">Activity Type</label>
+        <input type="text" id="filter_activity" list="activity_list" placeholder="Type or select Activity Type" />
+        <datalist id="activity_list"></datalist>
+      </div>
+    </div>
+    <div class="process-table-container">
+      <table class="process-table" id="processTable">
+        <thead>
+          <tr>
+            <th>Process Instance ID</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Status</th>
+            <th>QACA Job ID</th>
+            <th>Site ID</th>
+            <th>Circle</th>
+            <th>Activity Type</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+      <div class="process-empty" id="processEmpty">No data. Adjust filters to load results.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const filtersUrl = "{% url 'process_filters' %}";
+  const dataUrl = "{% url 'process_data_api' %}";
+  const jobSelect = document.getElementById("filter_jobid");
+  const siteSelect = document.getElementById("filter_siteid");
+  const circleSelect = document.getElementById("filter_circle");
+  const activitySelect = document.getElementById("filter_activity");
+  const jobList = document.getElementById("jobid_list");
+  const siteList = document.getElementById("siteid_list");
+  const circleList = document.getElementById("circle_list");
+  const activityList = document.getElementById("activity_list");
+  const tableBody = document.getElementById("processTable").querySelector("tbody");
+  const emptyEl = document.getElementById("processEmpty");
+
+  function populateList(list, values) {
+    while (list.firstChild) {
+      list.removeChild(list.firstChild);
+    }
+    values.forEach(function(v) {
+      const opt = document.createElement("option");
+      opt.value = v;
+      list.appendChild(opt);
+    });
+  }
+
+  function loadFilters() {
+    fetch(filtersUrl)
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        populateList(jobList, data.qacajobid || []);
+        populateList(siteList, data.siteid || []);
+        populateList(circleList, data.circle || []);
+        populateList(activityList, data.activitytype || []);
+      });
+  }
+
+  function buildQuery() {
+    const params = new URLSearchParams();
+    if (jobSelect.value) params.append("qacajobid", jobSelect.value);
+    if (siteSelect.value) params.append("siteid", siteSelect.value);
+    if (circleSelect.value) params.append("circle", circleSelect.value);
+    if (activitySelect.value) params.append("activitytype", activitySelect.value);
+    return params.toString();
+  }
+
+  function renderRows(rows) {
+    tableBody.innerHTML = "";
+    if (!rows || rows.length === 0) {
+      emptyEl.style.display = "block";
+      return;
+    }
+    emptyEl.style.display = "none";
+    rows.forEach(function(r) {
+      const tr = document.createElement("tr");
+      function cell(key) {
+        const td = document.createElement("td");
+        td.textContent = r[key] || "";
+        return td;
+      }
+      tr.appendChild(cell("Process Instance ID"));
+      tr.appendChild(cell("Start Date"));
+      tr.appendChild(cell("End Date"));
+      tr.appendChild(cell("Status"));
+      tr.appendChild(cell("QACA Job ID"));
+      tr.appendChild(cell("Site ID"));
+      tr.appendChild(cell("Circle"));
+      tr.appendChild(cell("Activity Type"));
+      tableBody.appendChild(tr);
+    });
+  }
+
+  function loadData() {
+    const q = buildQuery();
+    if (!q) {
+      renderRows([]);
+      return;
+    }
+    const url = q ? dataUrl + "?" + q : dataUrl;
+    fetch(url)
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        renderRows(data.rows || []);
+      });
+  }
+
+  [jobSelect, siteSelect, circleSelect, activitySelect].forEach(function(inp) {
+    inp.addEventListener("change", loadData);
+  });
+
+  document.addEventListener("DOMContentLoaded", function() {
+    loadFilters();
+  });
+})();
+</script>
+{% endblock %}

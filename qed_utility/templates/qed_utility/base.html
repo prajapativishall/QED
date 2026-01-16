@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  {% load static %}
+  {% load roles %}
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}QED Utility{% endblock %}</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'assets/favicon/apple-touch-icon.png' %}?v=2.0">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'assets/favicon/favicon-32x32.png' %}?v=2.0">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'assets/favicon/favicon-16x16.png' %}?v=2.0">
+    <link rel="manifest" href="{% static 'assets/favicon/site.webmanifest' %}?v=2.0">
+    <link rel="shortcut icon" href="{% static 'assets/favicon/favicon.ico' %}?v=2.0">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.2" />
+    {% block extra_css %}{% endblock %}
+  </head>
+  <body>
+    {% if user.is_authenticated %}
+      <nav class="navbar">
+        <div class="navbar-content">
+          <div class="navbar-left">
+            <a href="{% url 'dashboard' %}" class="app-logo">
+              <img src="{% static 'assets/qed_logo.png' %}" alt="QED Utility" class="logo-img" style="max-height: 40px; width: auto;" />
+            </a>
+            <div class="nav-links">
+              <a href="http://14.96.225.19:8080/flowable-ui/idm/#/login" class="nav-link" target="_blank" title="Go to Flowable IDM">
+                QED
+              </a>
+              <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                Dashboard
+              </a>
+              {% if request.user|has_any_role:"Circlecoordinator,Surveycoordinator,designcoordinator" %}
+                <a href="{% url 'bulk_upload' %}" class="nav-link {% if request.resolver_match.url_name == 'bulk_upload' %}active{% endif %}">
+                  Bulk Upload
+                </a>
+              {% endif %}
+              {% if request.user|has_any_role:"designcoordinator" %}
+                <a href="{% url 'bulk_delete' %}" class="nav-link {% if request.resolver_match.url_name == 'bulk_delete' %}active{% endif %}">
+                  Bulk Delete
+                </a>
+                <a href="{% url 'export' %}" class="nav-link {% if request.resolver_match.url_name == 'export' %}active{% endif %}">
+                  Export
+                </a>
+                <a href="{% url 'process_data' %}" class="nav-link {% if request.resolver_match.url_name == 'process_data' %}active{% endif %}">
+                  Process Data
+                </a>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="app-user-controls">
+            <span>{{ user.first_name|default:user.username }}</span>
+            <span>|</span>
+            <form method="post" action="{% url 'logout' %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn-logout">Logout</button>
+            </form>
+          </div>
+        </div>
+      </nav>
+
+      <div class="app-container">
+        <div class="app-card">
+          <main class="app-content">
+            {% if messages %}
+              <div class="messages" role="status" aria-live="polite">
+                {% for message in messages %}
+                  <div class="message message--{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% block content %}{% endblock %}
+          </main>
+        </div>
+      </div>
+    {% else %}
+      {% if messages %}
+        <div class="messages" role="status" aria-live="polite" style="position: absolute; top: 0; width: 100%; z-index: 2000;">
+          {% for message in messages %}
+            <div class="message message--{{ message.tags }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% block login_content %}{% endblock %}
+    {% endif %}
+
+    {% block extra_js %}{% endblock %}
+  </body>
+</html>

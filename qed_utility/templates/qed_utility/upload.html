@@ -1,0 +1,238 @@
+{% extends "qed_utility/base.html" %}
+{% load static %}
+{% load roles %}
+
+{% block title %}Bulk Upload | QED Utility{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/upload.css' %}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="upload-container">
+    <div class="upload-header-row">
+        <div class="header-content">
+            <h1>Bulk Process Upload</h1>
+            <p>Upload an Excel file to bulk initiate process instances in QED.</p>
+        </div>
+        <a href="{% static 'assets/bulk_upload.xlsx' %}" class="btn-download" download>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download Template
+        </a>
+    </div>
+
+    <div class="upload-card">
+        <form id="uploadForm" class="upload-form">
+            {% csrf_token %}
+            
+            <div class="file-drop-area" id="dropArea">
+                <div class="upload-icon-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="upload-icon">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                </div>
+                <span class="file-msg">Drag & drop your Excel file here or click to browse</span>
+                <input type="file" name="file" id="fileInput" accept=".xlsx,.xls" required class="file-input">
+                <div class="file-name" id="fileName"></div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-validate" id="validateBtn">
+                    Validate Excel
+                </button>
+            </div>
+        </form>
+
+        <div id="validationResult" class="validation-result"></div>
+
+        <div id="processLog" class="process-log" style="display:none;"></div>
+
+    <div class="action-area">
+            <button id="startBtn" class="btn-start" style="display:none;" onclick="startBulk()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                Start Processes
+            </button>
+        </div>
+        
+        <div class="upload-footer">
+            <a href="{% url 'dashboard' %}" class="back-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+let validatedRows = [];
+
+// File Input UI enhancement
+const fileInput = document.getElementById('fileInput');
+const dropArea = document.getElementById('dropArea');
+const fileName = document.getElementById('fileName');
+
+fileInput.addEventListener('change', function() {
+    if (this.files && this.files[0]) {
+        fileName.textContent = this.files[0].name;
+        dropArea.classList.add('has-file');
+    } else {
+        fileName.textContent = '';
+        dropArea.classList.remove('has-file');
+    }
+});
+
+document.getElementById("uploadForm").onsubmit = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('validateBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Validating...';
+
+    const out = document.getElementById("validationResult");
+    const logOut = document.getElementById("processLog");
+    const startBtn = document.getElementById("startBtn");
+    out.innerHTML = "";
+    out.className = "validation-result"; // reset classes
+    logOut.style.display = "none";
+    logOut.innerHTML = "";
+    startBtn.style.display = "none";
+
+    try {
+        const res = await fetch("{% url 'validate_excel' %}", {
+            method: "POST",
+            body: new FormData(this)
+        });
+
+        const data = await res.json();
+
+        if (!data.valid) {
+            out.classList.add("error");
+            if (data.error) {
+                out.innerHTML = `<div class="error-msg">${data.error}</div>`;
+            } else {
+                let html = `<div class="error-header">Found ${data.errors.length} rows with errors:</div><div class="error-container">`;
+                data.errors.forEach(r => {
+                    html += `
+                        <div class="error-row">
+                            <div class="error-summary" onclick="this.parentElement.classList.toggle('expanded')">
+                                <span class="row-badge">Row ${r.row}</span>
+                                <span class="job-id">${r.qacajobid || 'N/A'}</span>
+                                <span class="error-count">${r.errors.length} issues</span>
+                                <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </div>
+                            <div class="error-details">
+                                <ul>
+                                    ${r.errors.map(e => `<li>${e}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += "</div>";
+                out.innerHTML = html;
+            }
+        } else {
+            validatedRows = data.rows;
+            out.classList.add("success");
+            out.innerHTML = `<div class="success-msg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                Validation successful! Ready to process ${data.rows.length} rows.
+            </div>`;
+            startBtn.style.display = "inline-flex";
+        }
+    } catch (err) {
+        out.classList.add("error");
+        out.innerHTML = `<div class="error-msg">An unexpected error occurred: ${err.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+};
+
+async function startBulk() {
+    if (!confirm(`Are you sure you want to start ${validatedRows.length} processes?`)) return;
+
+    const btn = document.getElementById("startBtn");
+    const logOut = document.getElementById("processLog");
+    const originalText = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = 'Processing...';
+    logOut.style.display = "none";
+    logOut.innerHTML = "";
+
+    try {
+        const res = await fetch("{% url 'bulk_start' %}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rows: validatedRows })
+        });
+
+        const data = await res.json();
+        
+        let logHtml = `<div class="log-summary">
+            <div class="log-stat success">
+                <span class="count">${data.started}</span>
+                <span class="label">Started</span>
+            </div>
+            <div class="log-stat fail">
+                <span class="count">${data.failed}</span>
+                <span class="label">Failed</span>
+            </div>
+        </div>`;
+        
+        if (data.success_log && data.success_log.length > 0) {
+            logHtml += `<div class="log-section success-section">
+                <h4>Successfully Started IDs:</h4>
+                <div class="id-list">${data.success_log.map(id => `<span class="id-tag success">${id}</span>`).join('')}</div>
+            </div>`;
+        }
+        
+        if (data.fail_log && data.fail_log.length > 0) {
+            logHtml += `<div class="log-section fail-section">
+                <h4>Failed IDs:</h4>
+                <div class="fail-list">
+                    ${data.fail_log.map(item => `
+                        <div class="fail-item">
+                            <span class="id-tag fail">${item.id}</span>
+                            <span class="fail-reason">${item.error}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>`;
+        }
+        
+        logOut.innerHTML = logHtml;
+        logOut.style.display = "block";
+        
+        // Hide button if all done, or keep if user wants to retry failed (though logic currently doesn't support retry of specific subset easily without re-validating)
+        // For now, let's hide the start button to prevent double submission of same rows
+        btn.style.display = "none";
+        
+        // Clear file input so they have to start over for a new batch
+        if (data.started > 0) {
+             fileName.textContent = "";
+             dropArea.classList.remove('has-file');
+             // We don't reset the form fully so they can see the logs, but we clear the file input effectively
+             document.getElementById("fileInput").value = "";
+        }
+        
+    } catch (err) {
+        alert("Error starting processes: " + err.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+</script>
+{% endblock %}
