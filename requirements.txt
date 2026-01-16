@@ -1,4 +1,6 @@
 pandas
 openpyxl
 Django>=4.2
+python-dotenv
+mysql-connector-python
 
