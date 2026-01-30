@@ -3,12 +3,15 @@ __pycache__/
 *.log
 
 .venv/
+venv/
 
 db.sqlite3
 *.sqlite3
 
 .env
 debug_passwords.py
+debug_*.py
+check_api.py
 
 *.pid
 *.gz

@@ -54,6 +54,17 @@ def _instance_ids_for_filters(filters):
     return list(ids)
 
 
+def _sort_ids_by_start_time(instance_ids):
+    if not instance_ids:
+        return []
+    placeholders = ",".join(["%s"] * len(instance_ids))
+    query = f"SELECT ID_ FROM ACT_HI_PROCINST WHERE ID_ IN ({placeholders}) ORDER BY START_TIME_ DESC"
+    with mysql.connector.connect(**DB_CONFIG) as conn:
+        cursor = conn.cursor()
+        cursor.execute(query, instance_ids)
+        return [row[0] for row in cursor.fetchall()]
+
+
 @role_required("designcoordinator")
 @require_GET
 def process_data_api(request):
@@ -66,10 +77,22 @@ def process_data_api(request):
     instance_ids = _instance_ids_for_filters(filters)
     if not instance_ids:
         return JsonResponse({"rows": []})
+        
+    # Sort IDs by start time (descending) to ensure consistent pagination
+    sorted_ids = _sort_ids_by_start_time(instance_ids)
+    
     limit = int(request.GET.get("limit", "100"))
     offset = int(request.GET.get("offset", "0"))
-    df = fetch_export_data(instance_ids)
+    
+    # Slice the IDs *before* fetching heavy data
+    page_ids = sorted_ids[offset : offset + limit]
+    
+    if not page_ids:
+        return JsonResponse({"rows": []})
+
+    df = fetch_export_data(page_ids)
     if df.empty:
         return JsonResponse({"rows": []})
-    sliced = df.iloc[offset : offset + limit]
-    return JsonResponse({"rows": sliced.to_dict(orient="records")})
+        
+    # df contains only the requested page
+    return JsonResponse({"rows": df.to_dict(orient="records")})

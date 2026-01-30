@@ -1,0 +1,168 @@
+{% if field.type == 'horizontal-line' %}
+    <div style="border-bottom: 1px solid #e2e8f0; margin: 1rem 0;"></div>
+{% elif field.type == 'expression' or field.type == 'header' or field.type == 'formatted-text' or field.type == 'container' %}
+    <!-- Headline / Section Header -->
+    <div style="margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.25rem;">
+        <h4 style="font-size: 1.1rem; font-weight: 600; color: #1e293b; margin: 0;">{{ field.name|default:field.value }}</h4>
+    </div>
+    
+    <!-- Recursive rendering for container children -->
+    {% if field.fields %}
+        {% for subfield in field.fields %}
+            {% include "qed_utility/includes/form_field.html" with field=subfield task=task %}
+        {% endfor %}
+    {% endif %}
+
+    {% if field.rows %}
+        {% for row in field.rows %}
+            <div class="row" style="display: flex; flex-wrap: wrap; margin-right: -1rem; margin-left: -1rem;">
+              {% for col in row.cols %}
+                <div class="col-md-{{ col.width }}" style="position: relative; width: 100%; padding-right: 1rem; padding-left: 1rem; flex: 0 0 calc(100% * {{ col.width }} / 12); max-width: calc(100% * {{ col.width }} / 12);">
+                  {% for subfield in col.fields %}
+                    {% include "qed_utility/includes/form_field.html" with field=subfield task=task %}
+                  {% endfor %}
+                </div>
+              {% endfor %}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+{% elif field.type == 'boolean' %}
+    <!-- Boolean Checkbox Field -->
+    <div class="form-check" style="margin-top: 8px;">
+        <input 
+        type="checkbox" 
+        id="{{ field.id }}" 
+        name="{{ field.id }}" 
+        class="form-check-input" 
+        {% if field.value == 'true' or field.value == True %}checked{% endif %}
+        {% if field.readOnly or task.status == "Completed" %}disabled{% endif %}
+        >
+        <label class="form-check-label" for="{{ field.id }}" style="display: inline; margin-left: 8px; font-weight: normal;">
+        {{ field.name|default:field.id }}
+        </label>
+    </div>
+{% elif field.type|lower == 'date' %}
+    <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label" for="{{ field.id }}" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #64748b;">{{ field.name|default:field.id }}</label>
+        <input
+          type="date"
+          id="{{ field.id }}"
+          name="{{ field.id }}"
+          class="form-control"
+          value="{{ field.value|default_if_none:'' }}"
+          {% if field.readOnly or task.status == "Completed" %}readonly{% endif %}
+          {% if field.required %}required{% endif %}
+        />
+    </div>
+
+{% elif field.type == 'people' or 'assign' in field.id|lower %}
+    <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label" for="{{ field.id }}" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #64748b;">{{ field.name|default:field.id }}</label>
+        <input
+          type="text"
+          id="{{ field.id }}"
+          name="{{ field.id }}"
+          class="form-control"
+          value="{{ field.value|default_if_none:'' }}"
+          list="flowable-users-list"
+          autocomplete="off"
+          {% if field.readOnly or task.status == "Completed" %}readonly{% endif %}
+          {% if field.required %}required{% endif %}
+        />
+    </div>
+
+{% elif field.type == 'radio-buttons' %}
+    <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #64748b;">
+            {{ field.name|default:field.id }}
+        </label>
+        <div class="radio-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            {% for opt in field.options %}
+            {% with opt_name=opt.name|stringformat:"s"|lower|cut:" "  opt_id=opt.id|stringformat:"s"|lower|cut:" "  field_val=field.value|stringformat:"s"|lower|cut:" " %}
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="{{ field.id }}" id="{{ field.id }}_{{ opt.id }}" value="{{ opt.id }}"
+                {% if opt_name == field_val or opt_id == field_val %}checked{% endif %}
+                {% if field.readOnly or task.status == "Completed" %}disabled{% endif %}
+                {% if field.required %}required{% endif %}>
+                <label class="form-check-label" for="{{ field.id }}_{{ opt.id }}">
+                    {{ opt.name }}
+                </label>
+            </div>
+            {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+
+{% else %}
+    <div class="form-group" style="margin-bottom: 1rem;">
+        {% if field.type != 'boolean' %}
+            <label class="form-label" for="{{ field.id }}" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #64748b;">
+                {{ field.name|default:field.id }}
+            </label>
+        {% endif %}
+        
+        {% if field.options %}
+        <select id="{{ field.id }}" name="{{ field.id }}" class="form-control" {% if field.readOnly or task.status == "Completed" %}disabled{% endif %} {% if field.required %}required{% endif %}>
+            <option value="">Select...</option>
+            {% for opt in field.options %}
+            {% with opt_name=opt.name|stringformat:"s"|lower|cut:" "  opt_id=opt.id|stringformat:"s"|lower|cut:" "  field_val=field.value|stringformat:"s"|lower|cut:" " %}
+            <option value="{{ opt.name }}" {% if opt_name == field_val or opt_id == field_val %}selected{% endif %}>{{ opt.name }}</option>
+            {% endwith %}
+            {% endfor %}
+        </select>
+        {% if field.readOnly or task.status == "Completed" %}
+            <input type="hidden" name="{{ field.id }}" value="{{ field.value|default_if_none:'' }}">
+        {% endif %}
+        {% elif field.type == 'multi-line-text' %}
+            <textarea
+            id="{{ field.id }}"
+            name="{{ field.id }}"
+            class="form-control"
+            rows="4"
+            {% if field.readOnly or task.status == "Completed" %}readonly{% endif %}
+            {% if field.required %}required{% endif %}
+            >{{ field.value|default_if_none:'' }}</textarea>
+        {% elif field.type == 'upload' %}
+        <!-- Custom Upload Field Rendering with Document Popup -->
+        <div class="input-group">
+            <input
+                type="text"
+                id="{{ field.id }}"
+                class="form-control"
+                value="{% if field.value %}Documents Uploaded{% else %}No Documents{% endif %}"
+                readonly
+                style="cursor: pointer; background-color: #f8fafc;"
+                onclick="openDocumentModal('{{ field.id }}', '{{ field.name|default:field.id }}')"
+            />
+            {% if not field.readOnly and task.status != "Completed" %}
+                <button type="button" class="btn-outline" onclick="document.getElementById('upload_{{ field.id }}').click()">
+                Upload
+                </button>
+                <input 
+                type="file" 
+                id="upload_{{ field.id }}" 
+                name="upload_{{ field.id }}" 
+                style="display:none;" 
+                onchange="updateUploadLabel(this, '{{ field.id }}')"
+                >
+            {% endif %}
+        </div>
+        <div id="file_label_{{ field.id }}" style="font-size: 0.75rem; color: #64748b; margin-top: 4px; display: none;"></div>
+        {% else %}
+        {% with input_type=field.type %}
+        <input
+            type="{% if input_type == 'integer' or input_type == 'long' or input_type == 'double' or input_type == 'amount' %}number{% else %}{{ input_type|default:'text' }}{% endif %}" 
+            id="{{ field.id }}"
+            name="{{ field.id }}"
+            data-type="{{ field.type }}"
+            class="form-control"
+            value="{{ field.value|default_if_none:'' }}"
+            {% if field.readOnly or task.status == "Completed" %}readonly{% endif %}
+            {% if field.required %}required{% endif %}
+            {% if input_type == 'double' or input_type == 'amount' %}step="any"{% endif %}
+        />
+        {% endwith %}
+        {% endif %}
+    </div>
+{% endif %}

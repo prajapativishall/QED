@@ -54,8 +54,8 @@ def get_circle_head_summary(start, end, circle, activity):
                 SUM(CASE WHEN allot IS NULL THEN 1 ELSE 0 END) AS flag
             FROM (
                 SELECT
-                    MAX(CASE WHEN V.NAME_ IN ('allotmentdate','allocationdate') THEN V.LONG_ END) AS allot,
-                    MAX(CASE WHEN V.NAME_='actualsurveydate' THEN V.LONG_ END) AS asurvey,
+                    MAX(CASE WHEN V.NAME_ IN ('allotmentdate','allocationdate') THEN COALESCE(V.LONG_, V.BYTEARRAY_ID_) END) AS allot,
+                    MAX(CASE WHEN V.NAME_='actualsurveydate' THEN COALESCE(V.LONG_, V.BYTEARRAY_ID_) END) AS asurvey,
                     MAX(CASE WHEN V.NAME_='circle' THEN V.TEXT_ END) AS circle,
                     MAX(CASE WHEN V.NAME_='activitytype' THEN V.TEXT_ END) AS activity
                 FROM base B
@@ -106,8 +106,8 @@ def get_design_team_summary(start, end, circle, activity):
                 SUM(CASE WHEN srecv IS NOT NULL AND rcomp IS NOT NULL THEN 1 ELSE 0 END) AS completed
             FROM (
                 SELECT
-                    MAX(CASE WHEN V.NAME_='surveydatereceived' THEN V.LONG_ END) AS srecv,
-                    MAX(CASE WHEN V.NAME_='reviewcompletiondate' THEN V.LONG_ END) AS rcomp,
+                    MAX(CASE WHEN V.NAME_='surveydatereceived' THEN COALESCE(V.LONG_, V.BYTEARRAY_ID_) END) AS srecv,
+                    MAX(CASE WHEN V.NAME_='reviewcompletiondate' THEN COALESCE(V.LONG_, V.BYTEARRAY_ID_) END) AS rcomp,
                     MAX(CASE WHEN V.NAME_='circle' THEN V.TEXT_ END) AS circle,
                     MAX(CASE WHEN V.NAME_='activitytype' THEN V.TEXT_ END) AS activity
                 FROM base B
@@ -143,6 +143,33 @@ def get_flowable_users():
     except Exception as e:
         print("Error fetching flowable users:", e)
     return users
+
+
+def get_flowable_groups():
+    groups = []
+    try:
+        with mysql.connector.connect(**DB_CONFIG) as conn:
+            cursor = conn.cursor()
+            query = "SELECT ID_ AS id, NAME_ AS name FROM ACT_ID_GROUP ORDER BY NAME_;"
+            cursor.execute(query)
+            columns = [col[0] for col in cursor.description]
+            groups = [dict(zip(columns, row)) for row in cursor.fetchall()]
+    except Exception as e:
+        print("Error fetching flowable groups:", e)
+    return groups
+
+
+def get_user_groups(user_id):
+    """Fetch group IDs for a user from Flowable DB."""
+    groups = []
+    try:
+        with mysql.connector.connect(**DB_CONFIG) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT GROUP_ID_ FROM ACT_ID_MEMBERSHIP WHERE USER_ID_ = %s", (user_id,))
+            groups = [row[0] for row in cursor.fetchall()]
+    except Exception as e:
+        print(f"Error fetching groups for user {user_id}: {e}")
+    return groups
 
 
 def get_user_activity_sites(user_id):
@@ -218,8 +245,41 @@ def get_user_task_stats(user_id, site_id=None, activity_type=None):
             # Active tasks have END_TIME_ = NULL in ACT_HI_TASKINST.
             
             # Construct dynamic WHERE clause
-            params = [user_id]
-            where_clause = "WHERE T.ASSIGNEE_ = %s"
+            # We want tasks where:
+            # 1. Assignee is the user
+            # OR
+            # 2. Assignee is NULL AND (User is candidate OR User's group is candidate)
+            
+            user_groups = get_user_groups(user_id)
+            
+            candidate_subquery_parts = ["USER_ID_ = %s"]
+            candidate_params = [user_id]
+            
+            if user_groups:
+                placeholders = ', '.join(['%s'] * len(user_groups))
+                candidate_subquery_parts.append(f"GROUP_ID_ IN ({placeholders})")
+                candidate_params.extend(user_groups)
+                
+            candidate_condition_str = " OR ".join(candidate_subquery_parts)
+            
+            # Main WHERE clause
+            # (T.ASSIGNEE_ = user_id) OR (T.ASSIGNEE_ IS NULL AND T.ID_ IN (SELECT TASK_ID_ FROM ACT_HI_IDENTITYLINK WHERE TYPE_='candidate' AND (...)))
+            
+            where_clause = f"""
+            WHERE (
+                T.ASSIGNEE_ = %s 
+                OR (
+                    T.ASSIGNEE_ IS NULL 
+                    AND T.ID_ IN (
+                        SELECT TASK_ID_ 
+                        FROM ACT_HI_IDENTITYLINK 
+                        WHERE TYPE_ = 'candidate' 
+                        AND ({candidate_condition_str})
+                    )
+                )
+            )
+            """
+            params = [user_id] + candidate_params
             
             if site_id:
                 where_clause += " AND siteid LIKE %s"
@@ -231,12 +291,15 @@ def get_user_task_stats(user_id, site_id=None, activity_type=None):
             
             query = f"""
             SELECT 
+                T.ID_,
                 T.NAME_, 
+                T.START_TIME_,
                 T.END_TIME_,
                 siteid,
-                activitytype
+                activitytype,
+                T.PROC_INST_ID_
             FROM (
-                SELECT T.ID_, T.NAME_, T.ASSIGNEE_, T.END_TIME_, T.PROC_INST_ID_
+                SELECT T.ID_, T.NAME_, T.ASSIGNEE_, T.START_TIME_, T.END_TIME_, T.PROC_INST_ID_
                 FROM ACT_HI_TASKINST T
             ) T
             JOIN (
@@ -258,19 +321,22 @@ def get_user_task_stats(user_id, site_id=None, activity_type=None):
             task_list = []
             
             for row in rows:
-                name, end_time, site, activity = row
+                task_id, name, start_time, end_time, site, activity, proc_inst_id = row
                 status = "Completed" if end_time else "Pending"
+                display_date = end_time or start_time
                 if status == "Completed":
                     completed_count += 1
                 else:
                     pending_count += 1
                 
                 task_list.append({
+                    "id": task_id,
                     "name": name,
                     "siteid": site,
                     "activity": activity,
                     "status": status,
-                    "date": end_time.strftime("%Y-%m-%d %H:%M") if end_time else "-"
+                    "date": display_date.strftime("%Y-%m-%d %H:%M") if display_date else "-",
+                    "proc_inst_id": proc_inst_id,
                 })
             
             results["summary"]["completed"] = completed_count
@@ -301,6 +367,8 @@ def dashboard_view(request):
             "activity_list": ACTIVITY_LIST,
             "circle_stats": circle_stats,
             "design_stats": design_stats,
+            "default_start": default_start,
+            "default_end": default_end,
         }
     )
 
@@ -328,6 +396,11 @@ def api_dt_summary(request):
 @login_required
 def api_flowable_users(request):
     return JsonResponse(get_flowable_users(), safe=False)
+
+
+@login_required
+def api_flowable_groups(request):
+    return JsonResponse(get_flowable_groups(), safe=False)
 
 
 @login_required

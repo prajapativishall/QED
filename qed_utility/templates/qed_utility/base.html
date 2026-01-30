@@ -11,7 +11,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{% static 'assets/favicon/favicon-16x16.png' %}?v=2.0">
     <link rel="manifest" href="{% static 'assets/favicon/site.webmanifest' %}?v=2.0">
     <link rel="shortcut icon" href="{% static 'assets/favicon/favicon.ico' %}?v=2.0">
-    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.2" />
+    <link rel="stylesheet" href="{% static 'css/base.css' %}?v=2.6" />
     {% block extra_css %}{% endblock %}
   </head>
   <body>
@@ -23,28 +23,28 @@
               <img src="{% static 'assets/qed_logo.png' %}" alt="QED Utility" class="logo-img" style="max-height: 40px; width: auto;" />
             </a>
             <div class="nav-links">
-              <a href="http://14.96.225.19:8080/flowable-ui/idm/#/login" class="nav-link" target="_blank" title="Go to Flowable IDM">
-                QED
-              </a>
-              <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
-                Dashboard
-              </a>
-              {% if request.user|has_any_role:"Circlecoordinator,Surveycoordinator,designcoordinator" %}
-                <a href="{% url 'bulk_upload' %}" class="nav-link {% if request.resolver_match.url_name == 'bulk_upload' %}active{% endif %}">
-                  Bulk Upload
-                </a>
-              {% endif %}
-              {% if request.user|has_any_role:"designcoordinator" %}
-                <a href="{% url 'bulk_delete' %}" class="nav-link {% if request.resolver_match.url_name == 'bulk_delete' %}active{% endif %}">
-                  Bulk Delete
-                </a>
-                <a href="{% url 'export' %}" class="nav-link {% if request.resolver_match.url_name == 'export' %}active{% endif %}">
-                  Export
-                </a>
-                <a href="{% url 'process_data' %}" class="nav-link {% if request.resolver_match.url_name == 'process_data' %}active{% endif %}">
-                  Process Data
-                </a>
-              {% endif %}
+              <a href="http://14.96.225.19:8080/flowable-ui/idm/#/login" class="nav-link" target="_blank" title="Go to Flowable IDM">QED</a>
+              <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a>
+              <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
+          <a href="#" id="startProcessBtn" class="nav-link" onclick="openStartModal(event)">Start Process</a>
+          
+          {% if request.user|has_any_role:"Circlecoordinator,Surveycoordinator,designcoordinator" %}
+            <div class="dropdown">
+                <span class="nav-link dropdown-trigger {% if request.resolver_match.url_name == 'bulk_upload' or request.resolver_match.url_name == 'bulk_delete' %}active{% endif %}" onclick="toggleDropdown(event)">
+                    Bulk Operations
+                </span>
+                <div class="dropdown-content" style="display: none;">
+                    <a href="{% url 'bulk_upload' %}">Bulk Upload</a>
+                    {% if request.user|has_any_role:"designcoordinator" %}
+                        <a href="{% url 'bulk_delete' %}">Bulk Delete</a>
+                    {% endif %}
+                </div>
+            </div>
+          {% endif %}
+
+          {% if request.user|has_any_role:"designcoordinator" %}
+            <a href="{% url 'process_data' %}" class="nav-link {% if request.resolver_match.url_name == 'process_data' %}active{% endif %}">Process Data</a>
+          {% endif %}
             </div>
           </div>
 
@@ -83,6 +83,179 @@
       {% endif %}
       {% block login_content %}{% endblock %}
     {% endif %}
+
+    <!-- Global Start Process Modal -->
+    <div id="startProcessModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Start a Process</h2>
+          <span class="close">&times;</span>
+        </div>
+        <div class="form-group">
+          <label for="processSelect" class="form-label">Select Process</label>
+          <select id="processSelect" class="form-control">
+            <option value="">-- Select --</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button id="goToStartFormBtn" class="btn-outcome" disabled>Next</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Global functions to ensure accessibility
+      let processesLoaded = false;
+
+      function toggleDropdown(e) {
+          if (e) {
+              e.preventDefault();
+              e.stopPropagation();
+          }
+          const trigger = e.currentTarget || e.target.closest('.dropdown-trigger');
+          if (!trigger) return;
+
+          const dropdownContent = trigger.nextElementSibling;
+          if (dropdownContent && dropdownContent.classList.contains('dropdown-content')) {
+              if (dropdownContent.style.display === 'block') {
+                  dropdownContent.style.display = 'none';
+                  dropdownContent.classList.remove('show');
+              } else {
+                  // Close other dropdowns first
+                  const allDropdowns = document.querySelectorAll('.dropdown-content');
+                  allDropdowns.forEach(d => {
+                      d.style.display = 'none';
+                      d.classList.remove('show');
+                  });
+                  
+                  dropdownContent.style.display = 'block';
+                  dropdownContent.classList.add('show');
+              }
+          }
+      }
+
+      function openStartModal(e) {
+          if (e) e.preventDefault();
+          console.log("QED Utility: Open Modal Triggered");
+          const modal = document.getElementById("startProcessModal");
+          if (modal) {
+              // Force styles to ensure visibility
+              modal.style.display = "block";
+              modal.style.zIndex = "10000"; // Ensure it's on top
+              
+              // Debugging visibility
+              const style = window.getComputedStyle(modal);
+              console.log("Modal Computed Style - Display:", style.display);
+              console.log("Modal Computed Style - Z-Index:", style.zIndex);
+              console.log("Modal Computed Style - Visibility:", style.visibility);
+              console.log("Modal Computed Style - Opacity:", style.opacity);
+              
+              loadProcessDefinitions();
+          } else {
+              alert("Error: Modal element not found!");
+          }
+      }
+
+      function closeStartModal() {
+          const modal = document.getElementById("startProcessModal");
+          if (modal) modal.style.display = "none";
+      }
+
+      function loadProcessDefinitions() {
+          if (processesLoaded) return;
+          const select = document.getElementById("processSelect");
+          if (!select) return;
+
+          // Clear existing except first
+          while (select.options.length > 1) {
+              select.remove(1);
+          }
+
+          const loadingOption = document.createElement("option");
+          loadingOption.textContent = "Loading...";
+          select.appendChild(loadingOption);
+
+          fetch("/api/process-definitions/")
+              .then(response => {
+                  if (!response.ok) throw new Error("Status " + response.status);
+                  return response.json();
+              })
+              .then(data => {
+                  // Remove loading
+                  if (select.options.length > 1) select.remove(1);
+                  
+                  const definitions = data.data || [];
+                  if (definitions.length === 0) {
+                      const option = document.createElement("option");
+                      option.textContent = "No processes found";
+                      option.disabled = true;
+                      select.appendChild(option);
+                  }
+                  
+                  definitions.forEach(pd => {
+                      const option = document.createElement("option");
+                      option.value = pd.id;
+                      option.textContent = `${pd.name} (v${pd.version})`;
+                      select.appendChild(option);
+                  });
+                  processesLoaded = true;
+              })
+              .catch(error => {
+                  console.error("Error fetching processes:", error);
+                  alert("Failed to load processes: " + error.message);
+                  if (select.options.length > 1) select.remove(1);
+                  const option = document.createElement("option");
+                  option.textContent = "Error loading processes";
+                  option.disabled = true;
+                  select.appendChild(option);
+              });
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log("QED Utility: DOM Loaded");
+        
+        const modal = document.getElementById("startProcessModal");
+        const closeSpan = document.querySelector("#startProcessModal .close");
+        const nextBtn = document.getElementById("goToStartFormBtn");
+        const select = document.getElementById("processSelect");
+
+        if (closeSpan) {
+            closeSpan.onclick = closeStartModal;
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("startProcessModal");
+            if (event.target == modal) {
+                closeStartModal();
+            }
+
+            // Close dropdowns if clicking outside
+            if (!event.target.closest('.dropdown-trigger') && !event.target.closest('.dropdown-content')) {
+                const dropdowns = document.getElementsByClassName("dropdown-content");
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    openDropdown.style.display = 'none';
+                    openDropdown.classList.remove('show');
+                }
+            }
+        };
+        
+        if (select) {
+            select.onchange = function() {
+                if (nextBtn) nextBtn.disabled = !this.value;
+            };
+        }
+        
+        if (nextBtn) {
+            nextBtn.onclick = function() {
+                const processId = select.value;
+                if (processId) {
+                    window.location.href = `/tasks/start/${encodeURIComponent(processId)}/`;
+                }
+            };
+        }
+      });
+    </script>
 
     {% block extra_js %}{% endblock %}
   </body>

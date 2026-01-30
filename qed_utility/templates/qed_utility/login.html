@@ -1,22 +1,24 @@
 {% extends "qed_utility/base.html" %}
 {% load static %}
 
-{% block title %}Login | QED Utility{% endblock %}
+{% block title %}Login | QED {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/login.css' %}?v=2.2" />
+<link rel="stylesheet" href="{% static 'css/login.css' %}?v=2.8" />
 {% endblock %}
 
 {% block login_content %}
 <div class="login">
   <div class="login__overlay"></div>
   <div class="login__card">
-    <div class="login__brand">
-      <img src="{% static 'assets/qed_logo.png' %}" alt="QED Utility" class="login-logo" style="height: 80px; width: auto;" />
-    </div>
-    <div class="login__subtitle">Sign in</div>
+    <div class="login__header"></div>
+    <div class="login__content">
+      <div class="login__brand">
+        <img src="{% static 'assets/qed_logo.png' %}" alt="QED Utility" class="login-logo" />
+      </div>
+     
 
-    <form method="post" class="login__form" autocomplete="on">
+      <form method="post" class="login__form" autocomplete="on">
       {% csrf_token %}
 
       <label class="field">
@@ -42,7 +44,8 @@
       {% endif %}
 
       <button class="login__button" type="submit">Sign In</button>
-    </form>
+      </form>
+    </div>
   </div>
 </div>
 

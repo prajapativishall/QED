@@ -67,98 +67,211 @@ def fetch_export_data(instance_ids):
 
     placeholders = ",".join(["%s"] * len(instance_ids))
 
-    query = f"""
+    # 1. Fetch Process Instance Basic Info
+    query_proc = f"""
     SELECT 
-        P.ID_ AS `Process Instance ID`,
-        DATE(P.START_TIME_) AS `Start Date`,
-        DATE(P.END_TIME_) AS `End Date`,
-        CASE WHEN P.END_TIME_ IS NULL THEN 'Pending' ELSE 'Completed' END AS `Status`,
+        ID_ AS `Process Instance ID`,
+        DATE(START_TIME_) AS `Start Date`,
+        DATE(END_TIME_) AS `End Date`,
+        CASE WHEN END_TIME_ IS NULL THEN 'Pending' ELSE 'Completed' END AS `Status`
+    FROM ACT_HI_PROCINST
+    WHERE ID_ IN ({placeholders})
+    ORDER BY START_TIME_ DESC
+    """
 
-        -- General Info
-        MAX(CASE WHEN V.NAME_ = 'initiator' THEN V.TEXT_ END) AS `Circle Head Name`,
-        MAX(CASE WHEN V.NAME_ = 'qacajobid' THEN V.TEXT_ END) AS `QACA Job ID`,
-        MAX(CASE WHEN V.NAME_ = 'odooid' THEN V.TEXT_ END) AS `Odoo ID`,
-        MAX(CASE WHEN V.NAME_ = 'siteid' THEN V.TEXT_ END) AS `Site ID`,
-        MAX(CASE WHEN V.NAME_ = 'sitename' THEN V.TEXT_ END) AS `Site Name`,
-        MAX(CASE WHEN V.NAME_ = 'circle' THEN V.TEXT_ END) AS `Circle`,
-        MAX(CASE WHEN V.NAME_ = 'client' THEN V.TEXT_ END) AS `Client`,
-        MAX(CASE WHEN V.NAME_ = 'activitytype' THEN V.TEXT_ END) AS `Activity Type`,
-        MAX(CASE WHEN V.NAME_ = 'rateofaudit' THEN V.TEXT_ END) AS `Rate of Audit`,
-
-        MAX(CASE WHEN V.NAME_ = 'allocationtype' THEN V.TEXT_ END) AS `Allocation Type`,
-        MAX(CASE WHEN V.NAME_ = 'assignsurveycoordinator' THEN V.TEXT_ END) AS `Assigned Survey Co-ordinator`,
-        MAX(CASE WHEN V.NAME_ = 'surveyengineername' THEN V.TEXT_ END) AS `Assigned Survey Engineer`,
-        MAX(CASE WHEN V.NAME_ = 'surveyupload-clientportal' THEN V.TEXT_ END) AS `Survey Upload Client Portal`,
-
-        -- Survey Meta
-        MAX(CASE WHEN V.NAME_ = 'issurveyincluded' THEN V.TEXT_ END) AS `Is Survey Included`,
-        MAX(CASE WHEN V.NAME_ = 'surveytargetdate'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Survey Target Date`,
-        MAX(CASE WHEN V.NAME_ = 'surveysenttodesign'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Survey Sent To Design`,
-        MAX(CASE WHEN V.NAME_ IN ('allotmentdate','allocationdate')
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Allocation Date`,
-
-        MAX(CASE WHEN V.NAME_ = 'finalduedate'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Final Due Date`,
-        MAX(CASE WHEN V.NAME_ = 'assigndesignlead' THEN V.TEXT_ END) AS `Assigned Design Lead`,
-        MAX(CASE WHEN V.NAME_ = 'actualsurveydate'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Actual Survey Date`,
-        MAX(CASE WHEN V.NAME_ = 'surveydatereceived'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Survey Date Received`,
-        MAX(CASE WHEN V.NAME_ = 'reportcategoryonlyforbfs' THEN V.TEXT_ END) AS `Report Category Only For BFS`,
-
-        -- Assigned Roles + Time Taken
-        MAX(CASE WHEN V.NAME_ = 'assignsurveyvalidator' THEN V.TEXT_ END) AS `Assigned Survey Validator`,
-        MAX(CASE WHEN V.NAME_ = 'surveyftr' THEN V.TEXT_ END) AS `Survey-FTR`,
-        MAX(CASE WHEN V.NAME_ = 'timetaken' THEN V.TEXT_ END) AS `Time Taken - Survey Validator`,
-        MAX(CASE WHEN V.NAME_ = 'surveyvalidationdate'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Survey Validation Date`,
-
-        MAX(CASE WHEN V.NAME_ = 'assigndesignstr' THEN V.TEXT_ END) AS `Assigned Design Engineer Str`,
-        MAX(CASE WHEN V.NAME_ = 'timetaken3' THEN V.TEXT_ END) AS `Time Taken - Design Engineer Str`,
-        MAX(CASE WHEN V.NAME_ = 'reportcompletiondate'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Report Completion Date Design Eng Str`,
-
-        MAX(CASE WHEN V.NAME_ = 'assigndesignengineer' THEN V.TEXT_ END) AS `Assigned Design Engineer`,
-        MAX(CASE WHEN V.NAME_ = 'timetaken0' THEN V.TEXT_ END) AS `Time Taken - Design Engineer`,
-        MAX(CASE WHEN V.NAME_ = 'reportcompletiondate1'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Report Completion Date`,
-
-        MAX(CASE WHEN V.NAME_ = 'assigndraftpersonlayout' THEN V.TEXT_ END) AS `Assigned Draftperson Layout`,
-        MAX(CASE WHEN V.NAME_ = 'timetaken2' THEN V.TEXT_ END) AS `Time Taken - Draftperson Layout`,
-        MAX(CASE WHEN V.NAME_ = 'layoutpreparationdate'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Layout Preparation Date`,
-
-        MAX(CASE WHEN V.NAME_ = 'assigndraftpersonstrdetail' THEN V.TEXT_ END) AS `Assigned Draftperson Str/Detail`,
-        MAX(CASE WHEN V.NAME_ = 'timetaken1' THEN V.TEXT_ END) AS `Time Taken - Draftperson Str/Detail`,
-        MAX(CASE WHEN V.NAME_ = 'strdetailcompletiondate'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `STR /Detail Completion Date`,
-
-        -- Quality Check
-        MAX(CASE WHEN V.NAME_ = 'assignqualitychecker' THEN V.TEXT_ END) AS `Assigned Quality Checker`,
-        MAX(CASE WHEN V.NAME_ = 'reviewcompletiondate'
-            THEN DATE_FORMAT(FROM_UNIXTIME(V.LONG_ / 1000), '%d-%m-%Y') END) AS `Review Completion Date`,
-        MAX(CASE WHEN V.NAME_ = 'reasonbehindtatinlay' THEN V.TEXT_ END) AS `Reason Behind Delay in TAT`,
-        MAX(CASE WHEN V.NAME_ = 'sitestatus' THEN V.TEXT_ END) AS `Site Status`,
-        MAX(CASE WHEN V.NAME_ = 'approvalstatus' THEN V.TEXT_ END) AS `Approval Status`,
-        MAX(CASE WHEN V.NAME_ = 'workdonein' THEN V.TEXT_ END) AS `Work Done In`,
-        MAX(CASE WHEN V.NAME_ = 'mailsenttocirclehead' THEN V.TEXT_ END) AS `Mail sent to Circle Head`,
-
-        -- Rejection / Remarks
-        MAX(CASE WHEN V.NAME_ = 'rejectioncomment' THEN V.TEXT_ END) AS `Rejection By Design Lead`,
-        MAX(CASE WHEN V.NAME_ = 'remarkfromdesigncoordinator' THEN V.TEXT_ END) AS `Remark from Design coordinator`,
-        MAX(CASE WHEN V.NAME_ = 'rejectionreason' THEN V.TEXT_ END) AS `Rejection By Quality Checker`
-
-    FROM ACT_HI_PROCINST P
-    JOIN ACT_HI_VARINST V ON P.ID_ = V.PROC_INST_ID_
-    WHERE P.ID_ IN ({placeholders})
-    GROUP BY P.ID_
-    ORDER BY P.START_TIME_ DESC
+    # 2. Fetch All Variables
+    query_vars = f"""
+    SELECT 
+        PROC_INST_ID_ AS `Process Instance ID`,
+        NAME_,
+        TEXT_,
+        LONG_,
+        DOUBLE_
+    FROM ACT_HI_VARINST
+    WHERE PROC_INST_ID_ IN ({placeholders})
     """
 
     with mysql.connector.connect(**DB_CONFIG) as conn:
-        return pd.read_sql(query, conn, params=instance_ids)
+        df_proc = pd.read_sql(query_proc, conn, params=instance_ids)
+        df_vars = pd.read_sql(query_vars, conn, params=instance_ids)
+
+    if df_vars.empty:
+        return df_proc
+
+    # ---------------------------------------------------------
+    # Process Variables in Python to handle types and pivoting
+    # ---------------------------------------------------------
+    
+    # Define fields that should be treated as dates (from LONG_ timestamp)
+    date_fields = {
+        'surveytargetdate', 'surveysenttodesign', 'allotmentdate', 'allocationdate',
+        'finalduedate', 'actualsurveydate', 'surveydatereceived', 'surveyvalidationdate',
+        'reportcompletiondate', 'reportcompletiondate1', 'layoutpreparationdate',
+        'strdetailcompletiondate', 'reviewcompletiondate'
+    }
+
+    # Initialize Value column with TEXT_
+    df_vars['Value'] = df_vars['TEXT_']
+
+    # Fill missing Value with DOUBLE_
+    mask_double = df_vars['Value'].isna() & df_vars['DOUBLE_'].notna()
+    if mask_double.any():
+        df_vars.loc[mask_double, 'Value'] = df_vars.loc[mask_double, 'DOUBLE_'].astype(str)
+
+    # Handle LONG_ (Dates vs Integers)
+    # If it's a known date field, convert timestamp to string
+    mask_date = df_vars['NAME_'].isin(date_fields) & df_vars['LONG_'].notna()
+    if mask_date.any():
+        df_vars.loc[mask_date, 'Value'] = pd.to_datetime(df_vars.loc[mask_date, 'LONG_'], unit='ms').dt.strftime('%d-%m-%Y')
+
+    # For other LONG_ values that are not dates, use them as is if Value is still empty
+    mask_long_other = (~mask_date) & df_vars['Value'].isna() & df_vars['LONG_'].notna()
+    if mask_long_other.any():
+        df_vars.loc[mask_long_other, 'Value'] = df_vars.loc[mask_long_other, 'LONG_'].astype(str)
+
+    # Pivot: Index=Process Instance ID, Columns=NAME_, Values=Value
+    # We use pivot_table with aggfunc='first' to handle potential duplicates (though unlikely for same var name in one instance)
+    df_pivot = df_vars.pivot_table(index='Process Instance ID', columns='NAME_', values='Value', aggfunc='first')
+
+    # Merge Process Info with Pivoted Variables
+    df_final = pd.merge(df_proc, df_pivot, on='Process Instance ID', how='left')
+
+    # ---------------------------------------------------------
+    # Rename Columns to "Nice Names"
+    # ---------------------------------------------------------
+    column_mapping = {
+        # Group 1
+        'initiator': 'Circle Head Name',
+        'qacajobid': 'QACA Job ID',
+        'odooid': 'Odoo ID',
+        'siteid': 'Site ID',
+        'sitename': 'Site Name',
+        'circle': 'Circle',
+        'client': 'Client',
+        'activitytype': 'Activity Type',
+        'rateofaudit': 'Rate of Audit',
+        
+        # Group 2
+        'allocationtype': 'Allocation Type',
+        'assignsurveycoordinator': 'Assigned Survey Co-ordinator',
+        'surveyengineername': 'Assigned Survey Engineer',
+        'surveyupload-clientportal': 'Survey Upload Client Portal',
+        'issurveyincluded': 'Is Survey Included',
+        'surveytargetdate': 'Survey Target Date',
+        'surveysenttodesign': 'Survey Sent To Design',
+        'allotmentdate': 'Allocation Date',
+        'allocationdate': 'Allocation Date',
+        'finalduedate': 'Final Due Date',
+        'assigndesignlead': 'Assigned Design Lead',
+        'actualsurveydate': 'Actual Survey Date',
+        'surveydatereceived': 'Survey Date Received',
+        'reportcategoryonlyforbfs': 'Report Category Only For BFS',
+        
+        # Group 3
+        'assignsurveyvalidator': 'Survey Validator',
+        'timetaken': 'Time Taken - Survey Validator',
+        'surveyvalidationdate': 'Survey Validation Date',
+        
+        'assigndesignstr': 'Design Engineer Str',
+        'timetaken3': 'Time Taken - Design Engineer Str',
+        'reportcompletiondate': 'Report Completion Date Design Eng Str',
+        
+        'assigndesignengineer': 'Design Engineer',
+        'timetaken0': 'Time Taken - Design Engineer',
+        'reportcompletiondate1': 'Report Completion Date',
+        
+        'assigndraftpersonlayout': 'Draftperson Layout',
+        'timetaken2': 'Time Taken - Draftperson Layout',
+        'layoutpreparationdate': 'Layout Preparation Date',
+        
+        'assigndraftpersonstrdetail': 'Draftperson Str/Detail',
+        'timetaken1': 'Time Taken - Draftperson Str/Detail',
+        'strdetailcompletiondate': 'STR /Detail Completion Date',
+        
+        'surveyftr': 'Survey-FTR',
+        
+        # Group 4
+        'assignqualitychecker': 'Assigned Quality Checker',
+        'reviewcompletiondate': 'Review Completion Date',
+        'reasonbehindtatinlay': 'Reason Behind Delay in TAT',
+        'sitestatus': 'Site Status',
+        'approvalstatus': 'Approval Status',
+        'workdonein': 'Work Done In',
+        'mailsenttocirclehead': 'Mail sent to Circle Head',
+        'rejectioncomment': 'Rejection By Design Lead',
+        'remarkfromdesigncoordinator': 'Remark from Design coordinator',
+        'rejectionreason': 'Rejection By Quality Checker',
+
+        #Group 5
+        " assigndesignstrlead1": "Assign Design STR-Lead",
+        'assigndesignstr1': 'Assigned Design-STR',
+        'timetaken3': 'Time Taken',
+        'reportcompletiondate': 'Report Completion Date',
+        'strapprovalstatus': 'Design STR Approval',
+
+        #Group 6
+        "assigndraftpersonstrdetaillead1": "Assigned DraftPerson STR/Detail-Lead",
+        'assigndraftpersondetail': 'Assigned Draftperson STR/Detail',
+        'timetaken1': 'Time Taken',
+        'strdetailcompletiondate': 'STR/Detail Completion Date',
+        'approvalstatus': 'Approval Status',
+       
+    }
+
+    df_final.rename(columns=column_mapping, inplace=True)
+
+    # ---------------------------------------------------------
+    # Filter Columns: Only keep Process Instance info and mapped columns
+    # ---------------------------------------------------------
+    
+    # 1. Define the exact ordered list of columns to output
+    final_columns = [
+        # Process Instance Info
+        "Process Instance ID", "Start Date", "End Date", "Status",
+        
+        # Mapped Variables
+        "Circle Head Name", "QACA Job ID", "Odoo ID", "Site ID", "Site Name", 
+        "Circle", "Client", "Activity Type", "Rate of Audit",
+        
+        "Allocation Type", "Assigned Survey Co-ordinator", "Assigned Survey Engineer", 
+        "Survey Upload Client Portal", "Is Survey Included", "Survey Target Date", 
+        "Survey Sent To Design", "Allocation Date", "Final Due Date", "Assigned Design Lead", 
+        "Actual Survey Date", "Survey Date Received", "Report Category Only For BFS",
+        
+        "Survey Validator", "Time Taken - Survey Validator", "Survey Validation Date",
+        
+        "Design Engineer Str", "Time Taken - Design Engineer Str", "Report Completion Date Design Eng Str",
+        
+        "Design Engineer", "Time Taken - Design Engineer", "Report Completion Date",
+        
+        "Draftperson Layout", "Time Taken - Draftperson Layout", "Layout Preparation Date",
+        
+        "Draftperson Str/Detail", "Time Taken - Draftperson Str/Detail", "STR /Detail Completion Date",
+        
+        "Survey-FTR",
+        
+        "Assigned Quality Checker", "Review Completion Date", "Reason Behind Delay in TAT", 
+        "Site Status", "Approval Status", "Work Done In", "Mail sent to Circle Head",
+        
+        "Rejection By Design Lead", "Remark from Design coordinator", "Rejection By Quality Checker",
+        "Assign Design STR-Lead", "Assigned Design-STR", "Time Taken", "Report Completion Date", "Design STR Approval",
+        "Assigned DraftPerson STR/Detail-Lead", "Assigned Draftperson STR/Detail", "Time Taken", "STR/Detail Completion Date", "Approval Status"
+
+    ]
+
+    # 2. Add missing columns with "N/A"
+    for col in final_columns:
+        if col not in df_final.columns:
+            df_final[col] = "N/A"
+
+    # 3. Filter and reorder
+    df_final = df_final[final_columns]
+
+    # Fill empty values with N/A
+    df_final.fillna("N/A", inplace=True)
+    df_final.replace("", "N/A", inplace=True)
+
+    return df_final
 
 
 # =================================================

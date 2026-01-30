@@ -103,11 +103,30 @@
     window.updateCharts = function() {}; 
   }
 
-  function applyCh() {
-    const form = document.getElementById('chForm');
-    if (!form) return;
-    const p = new URLSearchParams(new FormData(form));
-    fetch('/api/ch_summary?' + p.toString())
+  function updateDashboards() {
+    const start = document.getElementById('common_start').value;
+    const end = document.getElementById('common_end').value;
+    const circle = document.getElementById('common_circle').value;
+    const activity = document.getElementById('common_activity').value;
+
+    // Build params for Survey (CH) - mapping common fields to API expected params
+    const pCh = new URLSearchParams({
+        ch_start: start,
+        ch_end: end,
+        ch_circle: circle,
+        ch_activity: activity
+    });
+
+    // Build params for Design (DT)
+    const pDt = new URLSearchParams({
+        dt_start: start,
+        dt_end: end,
+        dt_circle: circle,
+        dt_activity: activity
+    });
+
+    // Fetch Survey Data
+    fetch('/api/ch_summary?' + pCh.toString())
       .then(r => r.json())
       .then(d => {
         const elPending = document.getElementById('chPending');
@@ -125,13 +144,9 @@
         }
       })
       .catch(err => console.error("Error fetching CH summary:", err));
-  }
 
-  function applyDt() {
-    const form = document.getElementById('dtForm');
-    if (!form) return;
-    const p = new URLSearchParams(new FormData(form));
-    fetch('/api/dt_summary?' + p.toString())
+    // Fetch Design Data
+    fetch('/api/dt_summary?' + pDt.toString())
       .then(r => r.json())
       .then(d => {
         const elPending = document.getElementById('dtPending');
@@ -339,52 +354,55 @@
 {% endblock %}
 
 
-{% block title %}Dashboard | QED Utility{% endblock %}
+{% block title %}Dashboard | QED {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=2.0" />
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=2.1" />
 {% endblock %}
 
 {% block content %}
+<!-- ================= GLOBAL FILTER ================= -->
+<div class="dashboard-filter-container">
+  <form id="globalFilterForm" class="global-filter-form" onsubmit="return false;">
+    <div class="field-group">
+      <label>Start Date</label>
+      <input type="date" name="common_start" id="common_start" value="{{ default_start }}">
+    </div>
+
+    <div class="field-group">
+      <label>End Date</label>
+      <input type="date" name="common_end" id="common_end" value="{{ default_end }}">
+    </div>
+
+    <div class="field-group">
+      <label>Circle</label>
+      <select name="common_circle" id="common_circle">
+        <option value="">All Circles</option>
+        {% for c in circles %}
+          <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field-group">
+      <label>Activity Type</label>
+      <select name="common_activity" id="common_activity">
+        <option value="">All Activities</option>
+        {% for a in activity_list %}
+          <option value="{{ a }}">{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="button" class="btn-update" onclick="updateDashboards()">Update Dashboards</button>
+  </form>
+</div>
+
 <section class="dashboard-panels">
 
   <!-- ================= SURVEY DASHBOARD ================= -->
   <div class="dashboard-card">
     <h3>Survey Dashboard</h3>
-
-    <form id="chForm" onsubmit="return false;">
-      <div class="field-group">
-        <label>Start Date</label>
-        <input type="date" name="ch_start">
-      </div>
-
-      <div class="field-group">
-        <label>End Date</label>
-        <input type="date" name="ch_end">
-      </div>
-
-      <div class="field-group full-width">
-        <label>Circle</label>
-        <select name="ch_circle">
-          <option value="">All Circles</option>
-          {% for c in circles %}
-            <option value="{{ c }}">{{ c }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="field-group full-width">
-        <label>Activity Type</label>
-        <select name="ch_activity">
-          <option value="">All Activities</option>
-          {% for a in activity_list %}
-            <option value="{{ a }}">{{ a }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <button type="button" class="btn-update" onclick="applyCh()">Update Dashboard</button>
-    </form>
 
     <div class="dashboard-metrics">
       <div class="metrics-chart">
@@ -404,40 +422,6 @@
   <!-- ================= DESIGN DASHBOARD ================= -->
   <div class="dashboard-card">
     <h3>Design Dashboard</h3>
-
-    <form id="dtForm" onsubmit="return false;">
-      <div class="field-group">
-        <label>Start Date</label>
-        <input type="date" name="dt_start">
-      </div>
-
-      <div class="field-group">
-        <label>End Date</label>
-        <input type="date" name="dt_end">
-      </div>
-
-      <div class="field-group full-width">
-        <label>Circle</label>
-        <select name="dt_circle">
-          <option value="">All Circles</option>
-          {% for c in circles %}
-            <option value="{{ c }}">{{ c }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="field-group full-width">
-        <label>Activity Type</label>
-        <select name="dt_activity">
-          <option value="">All Activities</option>
-          {% for a in activity_list %}
-            <option value="{{ a }}">{{ a }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <button type="button" class="btn-update" onclick="applyDt()">Update Dashboard</button>
-    </form>
 
     <div class="dashboard-metrics">
       <div class="metrics-chart">

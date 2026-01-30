@@ -1,0 +1,112 @@
+{% extends "qed_utility/base.html" %}
+{% load static %}
+
+{% block title %}My Tasks{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/tasks.css' %}?v=1.0" />
+{% endblock %}
+
+{% block content %}
+<div class="tasks-page-container">
+  <div class="tasks-header">
+    <h1>My Tasks</h1>
+  </div>
+
+  <form method="get" class="tasks-filters">
+    <div class="tasks-filters-inputs">
+      <div class="tasks-filter-group">
+        <label for="filterName">NAME</label>
+        <input id="filterName" type="text" name="name" value="{{ filters.name|default:'' }}" placeholder="Search by task name">
+      </div>
+      <div class="tasks-filter-group">
+        <label for="filterSite">SITE</label>
+        <input id="filterSite" type="text" name="site" value="{{ filters.site|default:'' }}" placeholder="Search by site">
+      </div>
+      <div class="tasks-filter-group">
+        <label for="filterActivity">ACTIVITY TYPE</label>
+        <input id="filterActivity" type="text" name="activity" value="{{ filters.activity|default:'' }}" placeholder="Search by activity type">
+      </div>
+      <div class="tasks-filter-group status-group">
+        <label for="filterStatus">STATUS</label>
+        <select id="filterStatus" name="status">
+          <option value="" {% if not current_filter %}selected{% endif %}>All</option>
+          <option value="pending" {% if current_filter == 'pending' %}selected{% endif %}>Pending</option>
+          <option value="completed" {% if current_filter == 'completed' %}selected{% endif %}>Completed</option>
+        </select>
+      </div>
+     
+    </div>
+    <div class="tasks-filter-actions">
+      <button type="submit" class="btn-outcome">Apply Filters</button>
+      <a href="{% url 'tasks' %}" class="tasks-filter-reset">Reset</a>
+    </div>
+  </form>
+
+  <div class="tower-container">
+    <!-- Left Circle: Pending -->
+    <a href="{% url 'tasks' %}?status=pending" class="status-circle circle-pending {% if current_filter == 'pending' %}active{% endif %}">
+      <div class="circle-content">
+        <div class="circle-count">{{ summary.pending|default:0 }}</div>
+        <div class="circle-label">PENDING</div>
+      </div>
+    </a>
+
+    <!-- Center Tower -->
+    <div class="tower-structure">
+      <div class="tower-antenna"></div>
+      <div class="tower-body">
+        <div class="tower-lattice"></div>
+      </div>
+      <div class="tower-base"></div>
+    </div>
+    
+    <!-- Right Circle: Completed -->
+    <a href="{% url 'tasks' %}?status=completed" class="status-circle circle-completed {% if current_filter == 'completed' %}active{% endif %}">
+       <div class="circle-content">
+        <div class="circle-count">{{ summary.completed|default:0 }}</div>
+        <div class="circle-label">COMPLETED</div>
+       </div>
+    </a>
+  </div>
+
+  {% if has_filters %}
+  <div class="tasks-list-section">
+    <h2 class="tasks-list-title">
+      Tasks
+    </h2>
+    <div class="table-container">
+      <table class="dashboard-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Site</th>
+            <th>Activity</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in tasks %}
+          <tr>
+            <td>{{ task.name }}</td>
+            <td>{{ task.siteid }}</td>
+            <td>{{ task.activity }}</td>
+            <td>{{ task.status }}</td>
+            <td>{{ task.date }}</td>
+            <td><a href="{% url 'task_detail' task.id %}">View</a></td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6">No tasks available for this status.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

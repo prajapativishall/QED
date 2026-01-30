@@ -1,0 +1,568 @@
+/* Task Detail Container */
+.task-detail-container {
+  max-width: 900px;
+  margin: 2rem auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  padding: 2.5rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Header Section */
+.task-header {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.task-title-group {
+    flex: 1;
+}
+
+.task-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.025em;
+}
+
+.task-meta-info {
+    display: flex;
+    gap: 1.5rem;
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.task-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.task-meta-label {
+    font-weight: 500;
+    color: #94a3b8;
+}
+
+/* Status Badge */
+.task-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-completed {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.status-pending {
+  background-color: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde047;
+}
+
+/* Form Layout */
+.task-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  transition: all 0.2s ease-in-out;
+  box-sizing: border-box;
+  background-color: #fff;
+}
+
+.form-control:focus {
+  border-color: #3b82f6;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.form-control:disabled,
+.form-control[readonly] {
+  background-color: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
+  border-color: #e2e8f0;
+}
+
+/* Select Input Styling */
+select.form-control {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+/* Actions Section */
+.form-actions {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.btn-outcome {
+  padding: 0.75rem 1.5rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.btn-outcome:hover {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.btn-outcome:active {
+  transform: translateY(0);
+}
+
+/* Outcome Specific Colors */
+.btn-outcome[value="Reject"], .btn-outcome[value="REJECT"] {
+  background-color: #ef4444;
+}
+.btn-outcome[value="Reject"]:hover, .btn-outcome[value="REJECT"]:hover {
+  background-color: #dc2626;
+}
+
+.btn-outcome[value="Approve"], .btn-outcome[value="APPROVE"], .btn-outcome[value="Accept"], .btn-outcome[value="ACCEPTED"] {
+  background-color: #10b981;
+}
+.btn-outcome[value="Approve"]:hover, .btn-outcome[value="APPROVE"]:hover, .btn-outcome[value="Accept"]:hover, .btn-outcome[value="ACCEPTED"]:hover {
+  background-color: #059669;
+}
+
+/* Messages */
+.alert {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.alert-success {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.alert-error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+ .tasks-page-container {
+  max-width: 1000px;
+  margin: 2rem auto;
+ }
+
+ .tasks-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+ }
+
+ .tasks-header p {
+  margin: 0;
+  color: #64748b;
+ }
+
+/* Tower Layout */
+.tower-container {
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    height: 220px;
+    margin: 0 auto 2rem auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 0.75rem;
+    padding-bottom: 10px; /* Space for the land line */
+}
+
+/* Land Line (Grass) */
+.tower-container::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 10px;
+    background-color: transparent;
+    background-image: 
+        linear-gradient(45deg, #16a34a 50%, transparent 50%),
+        linear-gradient(-45deg, #16a34a 50%, transparent 50%);
+    background-size: 10px 10px;
+    background-repeat: repeat-x;
+    background-position: bottom;
+    z-index: 1; /* Below circles and tower */
+}
+
+/* Status Circles */
+.status-circle {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    z-index: 10;
+    position: relative;
+    bottom: 0;
+}
+
+.status-circle:hover {
+    transform: scale(1.05);
+}
+
+.circle-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.circle-count {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.circle-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.circle-icon {
+    font-size: 1rem;
+    margin-top: 0.25rem;
+}
+
+/* Left Circle - Pending (Yellow) */
+.circle-pending {
+    background-color: #facc15; /* Yellow-400 */
+    border: 6px solid #1e293b; /* Slate-800 border */
+    color: #1e293b;
+    margin-right: -15px; /* Slight overlap or tight spacing */
+}
+
+.circle-pending .circle-label {
+    background-color: rgba(30, 41, 59, 0.1);
+}
+
+/* Right Circle - Completed (Dark) */
+.circle-completed {
+    background-color: #334155; /* Slate-700 */
+    border: 6px solid #1e293b; /* Slate-800 border */
+    color: #facc15;
+    margin-left: -15px;
+}
+
+.circle-completed .circle-label {
+    background-color: #166534; /* Green background for label */
+    color: white;
+}
+
+/* Tower CSS Art */
+.tower-structure {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 200px;
+    width: 60px;
+    position: relative;
+    z-index: 5; /* Behind circles if they overlap, or use margins */
+    margin: 0 5px;
+}
+
+.tower-antenna {
+    width: 3px;
+    height: 30px;
+    background-color: #334155;
+    position: relative;
+}
+.tower-antenna::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -6px;
+    width: 15px;
+    height: 2px;
+    background-color: #334155;
+}
+
+.tower-body {
+    width: 100%;
+    flex: 1;
+    background: 
+        linear-gradient(to right, transparent 45%, #334155 45%, #334155 55%, transparent 55%), /* Center pole */
+        linear-gradient(to top right, transparent 48%, #334155 48%, #334155 52%, transparent 52%), /* Diagonal 1 */
+        linear-gradient(to top left, transparent 48%, #334155 48%, #334155 52%, transparent 52%); /* Diagonal 2 */
+    background-size: 100% 30px; /* Repeat pattern */
+    clip-path: polygon(40% 0%, 60% 0%, 100% 100%, 0% 100%); /* Tapered shape */
+    border-left: 3px solid #334155;
+    border-right: 3px solid #334155;
+    position: relative;
+}
+
+/* Lattice Cross-hatching approximation */
+.tower-lattice {
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(135deg, transparent 45%, #475569 45%, #475569 55%, transparent 55%),
+        linear-gradient(45deg, transparent 45%, #475569 45%, #475569 55%, transparent 55%);
+    background-size: 20px 20px;
+    opacity: 0.5;
+}
+
+.tower-base {
+    width: 80px;
+    height: 8px;
+    background-color: #334155;
+    border-radius: 4px;
+}
+
+/* Updated Filter Layout - Clean White */
+.tasks-filters {
+    background-color: transparent; /* Clean look */
+    padding: 0;
+    border: none;
+    margin-bottom: 2rem;
+}
+
+.tasks-filters-inputs {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    overflow-x: auto; /* Allow horizontal scroll on small screens */
+    padding-bottom: 4px;
+}
+
+.tasks-filter-group {
+    flex: 1;
+    min-width: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f1f5f9;
+}
+
+.tasks-filter-group label {
+    font-size: 0.75rem; /* Smaller */
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #94a3b8; /* Light gray */
+    letter-spacing: 0.05em;
+}
+
+.tasks-filter-group input,
+.tasks-filter-group select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px; /* More rounded */
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    background-color: #fff;
+    color: #334155;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.tasks-filter-group input::placeholder {
+    color: #cbd5e1;
+}
+
+.tasks-filter-group input:focus,
+.tasks-filter-group select:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.tasks-filter-group.status-group {
+    flex: 0 0 180px;
+}
+
+.tasks-filter-download {
+    flex: 0 0 auto;
+    min-width: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tasks-filter-download:hover {
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.06);
+}
+
+.tasks-filter-download svg {
+    color: #16a34a; /* Green for Excel */
+}
+
+.tasks-filter-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: flex-start; /* Left aligned */
+    margin-top: 1rem;
+    border-top: none;
+    padding-top: 0;
+}
+
+.tasks-filter-actions .btn-outcome {
+    padding: 0.75rem 2rem;
+    background-color: #2563eb;
+    border-radius: 8px;
+    font-weight: 600;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.tasks-filter-reset {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.table-container {
+  margin-top: 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow-x: auto;
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.dashboard-table th,
+.dashboard-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dashboard-table thead th {
+  background-color: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.dashboard-table tbody tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.dashboard-table tbody tr:hover {
+  background-color: #eff6ff;
+}
+
+.dashboard-table a {
+  color: #2563eb;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.dashboard-table a:hover {
+  text-decoration: underline;
+}
+
+/* Back Link */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  color: #64748b;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.back-link:hover {
+  color: #1e293b;
+}
+
+.back-link::before {
+  content: "←";
+  font-size: 1.2em;
+}

@@ -1,0 +1,493 @@
+{% extends "qed_utility/base.html" %}
+{% load static %}
+
+{% block title %}Task Detail | QED {% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/tasks.css' %}?v=1.0" />
+{% endblock %}
+
+{% block content %}
+<div class="task-detail-container">
+  {% if error %}
+    <div class="alert alert-error">
+      {{ error }}
+    </div>
+  {% else %}
+    <div class="task-header">
+      <div class="task-title-group">
+        <h2 class="task-title">{{ task.name }}</h2>
+        <div class="task-meta-info">
+          <span class="task-meta-item">
+            <span class="task-meta-label">ID:</span> {{ task.id }}
+          </span>
+          <span class="task-meta-item">
+            <span class="task-meta-label">Start:</span>
+            {% if task.start %}{{ task.start }}{% else %}-{% endif %}
+          </span>
+          {% if task.end %}
+          <span class="task-meta-item">
+            <span class="task-meta-label">End:</span> {{ task.end }}
+          </span>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="task-status-badge {% if task.status == 'Completed' %}status-completed{% else %}status-pending{% endif %}">
+        {{ task.status }}
+      </div>
+      
+      {% if flowable_link %}
+      <div style="width: 100%; margin-top: 0.5rem;">
+        <a href="{{ flowable_link }}" target="_blank" style="color: #3b82f6; font-size: 0.875rem; text-decoration: none;">Open in Flowable &rarr;</a>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if submit_success %}
+      <div class="alert alert-success">Form submitted successfully.</div>
+    {% endif %}
+    {% if submit_error %}
+      <div class="alert alert-error">{{ submit_error }}</div>
+    {% endif %}
+
+    <!-- Datalist for User Assignment -->
+    <datalist id="flowable-users-list">
+      {% for u in flowable_users %}
+        <option value="{{ u.id }}">{{ u.name }} ({{ u.email }})</option>
+      {% endfor %}
+    </datalist>
+
+    {% if task.can_claim %}
+      <div class="claim-section" style="margin: 2rem 0; padding: 1.5rem; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; text-align: center;">
+          <h3 style="margin-top: 0; color: #1e293b;">Claim Task</h3>
+          <p style="color: #64748b; margin-bottom: 1.5rem;">This task is currently unassigned. You must claim it before you can work on it.</p>
+          <form action="{% url 'claim_task' task.id %}" method="post">
+              {% csrf_token %}
+              <button type="submit" class="btn-outcome" style="background-color: #2563eb; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer;">Claim Task</button>
+          </form>
+      </div>
+    {% else %}
+    
+    {% if form and form.rows %}
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="task-form-container">
+          {% for row in form.rows %}
+            <div class="row" style="display: flex; flex-wrap: wrap; margin-right: -1rem; margin-left: -1rem;">
+              {% for col in row.cols %}
+                <div class="col-md-{{ col.width }}" style="position: relative; width: 100%; padding-right: 1rem; padding-left: 1rem; flex: 0 0 calc(100% * {{ col.width }} / 12); max-width: calc(100% * {{ col.width }} / 12);">
+                  {% for field in col.fields %}
+                    {% include "qed_utility/includes/form_field.html" with field=field task=task %}
+                  {% endfor %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+
+        {% if task.status != "Completed" %}
+        <div class="form-actions">
+          {% if form.outcomes %}
+            {% for outcome in form.outcomes %}
+              <button type="submit" name="outcome" value="{{ outcome.name }}" class="btn-outcome">{{ outcome.name }}</button>
+            {% endfor %}
+          {% else %}
+            <button type="submit" class="btn-outcome">Submit</button>
+          {% endif %}
+        </div>
+        {% endif %}
+      </form>
+
+    {% elif task.variables %}
+      <h3>Data</h3>
+      <div class="task-form-grid">
+        {% for var in task.variables %}
+        <div class="form-group">
+          <label class="form-label">{{ var.name }}</label>
+          <input type="text" class="form-control" value="{{ var.value }}" readonly />
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No form data available for this task.</p>
+    {% endif %}
+    
+    {% endif %}
+
+  {% endif %}
+
+  <a href="{% url 'tasks' %}" class="back-link">Back to My Tasks</a>
+</div>
+
+<!-- Document Modal -->
+<div id="documentModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="docModalTitle">Attached Documents</h3>
+      <span class="close-modal" onclick="closeDocumentModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead style="background-color: #f8fafc;">
+            <tr>
+              <th style="text-align: left; padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0;">Name</th>
+              <th style="text-align: left; padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0;">Type</th>
+              <th style="text-align: left; padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0;">Uploaded By</th>
+              <th style="text-align: right; padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 600; color: #64748b; border-bottom: 1px solid #e2e8f0;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="docModalBody">
+             <!-- Content populated by JS -->
+          </tbody>
+        </table>
+        <div id="noDocsMessage" style="display:none; padding: 1rem; text-align: center; color: #64748b;">
+            No documents found for this field.
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn-outcome" style="background-color: #64748b;" onclick="closeDocumentModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Modal Styles */
+  .modal {
+    display: none; 
+    position: fixed; 
+    z-index: 1000; 
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.4); 
+  }
+  .modal-content {
+    background-color: #fefefe;
+    margin: 10% auto; 
+    padding: 0;
+    border: 1px solid #888;
+    width: 80%; 
+    max-width: 800px;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  .modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-header h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: #1e293b;
+  }
+  .close-modal {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .close-modal:hover,
+  .close-modal:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .modal-body {
+    padding: 1.5rem;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #e2e8f0;
+      text-align: right;
+      background-color: #f8fafc;
+      border-radius: 0 0 0.5rem 0.5rem;
+  }
+  
+  .input-group {
+      display: flex;
+      gap: 0.5rem;
+  }
+  .btn-outline {
+      padding: 0.5rem 1rem;
+      border: 1px solid #d1d5db;
+      background-color: white;
+      color: #374151;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+  }
+  .btn-outline:hover {
+      background-color: #f9fafb;
+      border-color: #9ca3af;
+  }
+
+  .autocomplete-items {
+    position: absolute;
+    border: 1px solid #d4d4d4;
+    border-bottom: none;
+    border-top: none;
+    z-index: 99;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #fff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-radius: 0 0 0.375rem 0.375rem;
+  }
+  .autocomplete-item {
+    padding: 10px;
+    cursor: pointer;
+    background-color: #fff;
+    border-bottom: 1px solid #d4d4d4;
+    color: #333;
+    font-size: 0.875rem;
+  }
+  .autocomplete-item:hover {
+    background-color: #e9e9e9;
+  }
+  .autocomplete-active {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+  }
+  .form-group {
+      position: relative;
+  }
+  
+  /* Multi-Select Dropdown Styles */
+  .multi-select-wrapper {
+      position: relative;
+      width: 100%;
+  }
+  .multi-select-btn {
+      text-align: left;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      background-color: #fff;
+  }
+  .multi-select-content {
+      display: none;
+      position: absolute;
+      background-color: #f9f9f9;
+      min-width: 100%;
+      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+      z-index: 999;
+      border: 1px solid #ddd;
+      max-height: 200px;
+      overflow-y: auto;
+      border-radius: 0 0 4px 4px;
+  }
+  .multi-select-content label {
+      color: black;
+      padding: 8px 16px;
+      text-decoration: none;
+      display: block;
+      cursor: pointer;
+  }
+  .multi-select-content label:hover {background-color: #f1f1f1}
+  .multi-select-wrapper.show .multi-select-content {display: block;}
+  
+  /* Ensure checkboxes in dropdown are visible */
+  .multi-select-content input[type="checkbox"] {
+      margin-right: 10px;
+  }
+</style>
+
+<script>
+  function openDocumentModal(fieldId, fieldName) {
+      const modal = document.getElementById('documentModal');
+      const title = document.getElementById('docModalTitle');
+      const tbody = document.getElementById('docModalBody');
+      const noDocsMsg = document.getElementById('noDocsMessage');
+      
+      title.textContent = 'Documents: ' + fieldName;
+      tbody.innerHTML = '';
+      noDocsMsg.style.display = 'none';
+      
+      // Filter content items for this field
+      const contentItems = [
+          {% for item in task.content_items %}
+          {
+              id: "{{ item.id }}",
+              name: "{{ item.name }}",
+              mime_type: "{{ item.mime_type }}",
+              created: "{{ item.created }}",
+              created_by: "{{ item.created_by }}",
+              field: "{{ item.field }}"
+          },
+          {% endfor %}
+      ];
+      
+      const fieldDocs = contentItems.filter(item => item.field === fieldId);
+      
+      if (fieldDocs.length === 0) {
+          noDocsMsg.style.display = 'block';
+      } else {
+          fieldDocs.forEach(doc => {
+              const row = document.createElement('tr');
+              row.style.borderBottom = '1px solid #f1f5f9';
+              
+              row.innerHTML = `
+                  <td style="padding: 0.75rem 1rem; color: #334155;">${doc.name}</td>
+                  <td style="padding: 0.75rem 1rem; color: #64748b; font-size: 0.875rem;">${doc.mime_type}</td>
+                  <td style="padding: 0.75rem 1rem; color: #64748b; font-size: 0.875rem;">${doc.created_by}</td>
+                  <td style="padding: 0.75rem 1rem; text-align: right;">
+                      <a href="/tasks/content/${doc.id}/view/" target="_blank" class="btn-outline" style="text-decoration: none; display: inline-block; padding: 0.25rem 0.5rem; font-size: 0.75rem;">View</a>
+                      <a href="/tasks/content/${doc.id}/" class="btn-outline" style="text-decoration: none; display: inline-block; padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-left: 0.5rem;">Download</a>
+                  </td>
+              `;
+              tbody.appendChild(row);
+          });
+      }
+      
+      modal.style.display = 'block';
+  }
+  
+  function closeDocumentModal() {
+      document.getElementById('documentModal').style.display = 'none';
+  }
+  
+  // Close modal when clicking outside
+  window.onclick = function(event) {
+      const modal = document.getElementById('documentModal');
+      if (event.target == modal) {
+          modal.style.display = "none";
+      }
+  }
+
+  function updateUploadLabel(input, fieldId) {
+      const label = document.getElementById('file_label_' + fieldId);
+      if (input.files && input.files.length > 0) {
+          label.textContent = "Selected: " + input.files[0].name;
+          label.style.display = "block";
+      } else {
+          label.style.display = "none";
+      }
+  }
+
+  // --- Auto-Complete Logic ---
+  // Define available users from backend context
+  const allUsers = [
+      {% for u in flowable_users %}
+      { id: "{{ u.id }}", name: "{{ u.name }}", email: "{{ u.email }}" },
+      {% endfor %}
+  ];
+
+  const autocompleteFields = document.querySelectorAll('input[data-type="auto-complete"]');
+  autocompleteFields.forEach(input => {
+    let currentFocus;
+    input.addEventListener("input", function(e) {
+        const val = this.value;
+        closeAllLists();
+        if (!val) { return false; }
+        currentFocus = -1;
+        
+        const listDiv = document.createElement("DIV");
+        listDiv.setAttribute("id", this.id + "autocomplete-list");
+        listDiv.setAttribute("class", "autocomplete-items");
+        this.parentNode.appendChild(listDiv);
+
+        // Filter users based on input
+        const suggestions = allUsers.filter(u => {
+            const searchStr = (u.name + " " + u.email + " " + u.id).toLowerCase();
+            return searchStr.includes(val.toLowerCase());
+        });
+        
+        suggestions.forEach(u => {
+             const itemDiv = document.createElement("DIV");
+             itemDiv.className = "autocomplete-item";
+             // Highlight matching part in Name is complex, so just show Name + Email
+             itemDiv.innerHTML = `<strong>${u.name}</strong> (${u.email})`;
+             itemDiv.innerHTML += `<input type='hidden' value='${u.id}'>`;
+             
+             itemDiv.addEventListener("click", function(e) {
+                 input.value = this.getElementsByTagName("input")[0].value;
+                 closeAllLists();
+             });
+             listDiv.appendChild(itemDiv);
+        });
+    });
+
+    input.addEventListener("keydown", function(e) {
+        let x = document.getElementById(this.id + "autocomplete-list");
+        if (x) x = x.getElementsByTagName("div");
+        if (e.keyCode == 40) { // DOWN
+            currentFocus++;
+            addActive(x);
+        } else if (e.keyCode == 38) { // UP
+            currentFocus--;
+            addActive(x);
+        } else if (e.keyCode == 13) { // ENTER
+            e.preventDefault();
+            if (currentFocus > -1) {
+                if (x) x[currentFocus].click();
+            }
+        }
+    });
+    
+    function addActive(x) {
+        if (!x) return false;
+        removeActive(x);
+        if (currentFocus >= x.length) currentFocus = 0;
+        if (currentFocus < 0) currentFocus = (x.length - 1);
+        x[currentFocus].classList.add("autocomplete-active");
+    }
+    
+    function removeActive(x) {
+        for (let i = 0; i < x.length; i++) {
+            x[i].classList.remove("autocomplete-active");
+        }
+    }
+    
+    function closeAllLists(elmnt) {
+        const x = document.getElementsByClassName("autocomplete-items");
+        for (let i = 0; i < x.length; i++) {
+            if (elmnt != x[i] && elmnt != input) {
+                x[i].parentNode.removeChild(x[i]);
+            }
+        }
+    }
+    
+    document.addEventListener("click", function (e) {
+        closeAllLists(e.target);
+    });
+  });
+
+  // --- Multi-Select Logic ---
+  // Simple custom implementation for multi-select checkboxes in dropdown
+  // Note: For production, consider using a library like Select2 or Choices.js
+  document.querySelectorAll('.multi-select-wrapper').forEach(wrapper => {
+      const btn = wrapper.querySelector('.multi-select-btn');
+      const content = wrapper.querySelector('.multi-select-content');
+      
+      btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          wrapper.classList.toggle('show');
+      });
+      
+      // Close when clicking outside
+      window.addEventListener('click', () => {
+          wrapper.classList.remove('show');
+      });
+      
+      content.addEventListener('click', (e) => {
+          e.stopPropagation();
+      });
+  });
+
+</script>
+{% endblock %}
