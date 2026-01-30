@@ -770,15 +770,17 @@ def _populate_model_values(model: dict, values_map: dict):
             # --- CRITICAL: Ensure Value is in Options (for Dropdowns) ---
             # If the value is not in the options, it MUST be added for the dropdown to show it.
             # We strictly limit this to dropdown/select types to avoid polluting other fields.
-            if field.get("type") in ["dropdown", "select", "radio-buttons"]:
-                if field.get("options") and field.get("value"):
-                    curr_val = str(field["value"]).strip().lower()
-                    options_vals = [str(opt.get("name", "")).strip().lower() for opt in field["options"]]
-                    options_ids = [str(opt.get("id", "")).strip().lower() for opt in field["options"]]
-                    
-                    if curr_val not in options_vals and curr_val not in options_ids:
-                        print(f"DEBUG: Value '{field['value']}' not in options for {f_id}. Appending it.")
-                        field["options"].append({"name": field["value"], "id": field["value"]})
+            # UPDATE: User reported "unknown options". Disabling auto-append to prevent garbage values
+            # from appearing as valid options.
+            # if field.get("type") in ["dropdown", "select", "radio-buttons"]:
+            #    if field.get("options") and field.get("value"):
+            #        curr_val = str(field["value"]).strip().lower()
+            #        options_vals = [str(opt.get("name", "")).strip().lower() for opt in field["options"]]
+            #        options_ids = [str(opt.get("id", "")).strip().lower() for opt in field["options"]]
+            #        
+            #        if curr_val not in options_vals and curr_val not in options_ids:
+            #            print(f"DEBUG: Value '{field['value']}' not in options for {f_id}. Appending it.")
+            #            field["options"].append({"name": field["value"], "id": field["value"]})
             
             # Debug "Forward" field options source
             if "forward" in fid_lower or "outcome" in fid_lower:

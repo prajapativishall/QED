@@ -40,11 +40,15 @@
         >
         <label class="form-check-label" for="{{ field.id }}" style="display: inline; margin-left: 8px; font-weight: normal;">
         {{ field.name|default:field.id }}
+        {% if field.required %}<span style="color: red; margin-left: 2px;">*</span>{% endif %}
         </label>
     </div>
 {% elif field.type|lower == 'date' %}
     <div class="form-group" style="margin-bottom: 1rem;">
-        <label class="form-label" for="{{ field.id }}" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #64748b;">{{ field.name|default:field.id }}</label>
+        <label class="form-label" for="{{ field.id }}" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #64748b;">
+            {{ field.name|default:field.id }}
+            {% if field.required %}<span style="color: red; margin-left: 2px;">*</span>{% endif %}
+        </label>
         <input
           type="date"
           id="{{ field.id }}"
@@ -58,7 +62,10 @@
 
 {% elif field.type == 'people' or 'assign' in field.id|lower %}
     <div class="form-group" style="margin-bottom: 1rem;">
-        <label class="form-label" for="{{ field.id }}" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #64748b;">{{ field.name|default:field.id }}</label>
+        <label class="form-label" for="{{ field.id }}" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #64748b;">
+            {{ field.name|default:field.id }}
+            {% if field.required %}<span style="color: red; margin-left: 2px;">*</span>{% endif %}
+        </label>
         <input
           type="text"
           id="{{ field.id }}"
@@ -76,6 +83,7 @@
     <div class="form-group" style="margin-bottom: 1rem;">
         <label class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #64748b;">
             {{ field.name|default:field.id }}
+            {% if field.required %}<span style="color: red; margin-left: 2px;">*</span>{% endif %}
         </label>
         <div class="radio-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
             {% for opt in field.options %}
@@ -99,6 +107,7 @@
         {% if field.type != 'boolean' %}
             <label class="form-label" for="{{ field.id }}" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #64748b;">
                 {{ field.name|default:field.id }}
+                {% if field.required %}<span style="color: red; margin-left: 2px;">*</span>{% endif %}
             </label>
         {% endif %}
         
