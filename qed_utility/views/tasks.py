@@ -717,41 +717,45 @@ def _populate_model_values(model: dict, values_map: dict):
             fid_lower = f_id.lower() if f_id else ""
             fname_lower = f_name.lower() if f_name else ""
             
-            if field.get("type") in ["dropdown", "select", "radio-buttons"]:
-                if "circle" in fid_lower and ("options" not in field or not field["options"]):
-                    field["options"] = [{"name": c, "id": c} for c in CIRCLE_LIST]
-                    logger.debug(f"Populated options for circle field {f_id}")
-                
-                elif "activity" in fid_lower and ("options" not in field or not field["options"]):
-                    field["options"] = [{"name": c, "id": c} for c in ACTIVITY_LIST]
-                
-                elif "client" in fid_lower and ("options" not in field or not field["options"]):
-                     field["options"] = [{"name": c, "id": c} for c in ["Indus", "ATC", "Sitel", "Other"]]
-                
-                elif "allocation" in fid_lower and ("options" not in field or not field["options"]):
-                     field["options"] = [{"name": c, "id": c} for c in ["Single", "Bulk", "Auto"]]
-
-                # Fix for "Forward" field showing "Option 1" or generic options
-                # Check ID OR Name (Label) for "Forward"
-                elif ("forward" in fid_lower or "outcome" in fid_lower or "forward" in fname_lower) and field.get("type") in ["dropdown", "select", "radio-buttons"]:
-                     # Check if options are missing OR contain generic "Option 1"
-                     has_generic = False
-                     if field.get("options"):
-                         for opt in field["options"]:
-                             if "option 1" in str(opt.get("name", "")).lower():
-                                 has_generic = True
-                                 break
-                     
-                     if "options" not in field or not field["options"] or has_generic:
-                         field["options"] = [
-                             {"name": "Yes", "id": "Yes"},
-                             {"name": "No", "id": "No"}
-                         ]
-                         # Also clear generic value if present (so "Option 1" isn't selected)
-                         if "option 1" in str(field.get("value", "")).lower():
-                             field["value"] = None
-                         
-                         logger.debug(f"Forced Yes/No options for forward field {f_id} (was missing or generic)")
+            # STRICT MODE: User requested "fetch as it is in flowable".
+            # Removed all hardcoded option population logic for Circle, Client, Activity, Allocation, and Forward.
+            # We rely entirely on the options provided by the Flowable Form definition.
+            
+            # if field.get("type") in ["dropdown", "select", "radio-buttons"]:
+            #     if "circle" in fid_lower and ("options" not in field or not field["options"]):
+            #         field["options"] = [{"name": c, "id": c} for c in CIRCLE_LIST]
+            #         logger.debug(f"Populated options for circle field {f_id}")
+            #     
+            #     elif "activity" in fid_lower and ("options" not in field or not field["options"]):
+            #         field["options"] = [{"name": c, "id": c} for c in ACTIVITY_LIST]
+            #     
+            #     elif "client" in fid_lower and ("options" not in field or not field["options"]):
+            #          field["options"] = [{"name": c, "id": c} for c in ["Indus", "ATC", "Sitel", "Other"]]
+            #     
+            #     elif "allocation" in fid_lower and ("options" not in field or not field["options"]):
+            #          field["options"] = [{"name": c, "id": c} for c in ["Single", "Bulk", "Auto"]]
+            #
+            #     # Fix for "Forward" field showing "Option 1" or generic options
+            #     # Check ID OR Name (Label) for "Forward"
+            #     elif ("forward" in fid_lower or "outcome" in fid_lower or "forward" in fname_lower) and field.get("type") in ["dropdown", "select", "radio-buttons"]:
+            #          # Check if options are missing OR contain generic "Option 1"
+            #          has_generic = False
+            #          if field.get("options"):
+            #              for opt in field["options"]:
+            #                  if "option 1" in str(opt.get("name", "")).lower():
+            #                      has_generic = True
+            #                      break
+            #          
+            #          if "options" not in field or not field["options"] or has_generic:
+            #              field["options"] = [
+            #                  {"name": "Yes", "id": "Yes"},
+            #                  {"name": "No", "id": "No"}
+            #              ]
+            #              # Also clear generic value if present (so "Option 1" isn't selected)
+            #              if "option 1" in str(field.get("value", "")).lower():
+            #                  field["value"] = None
+            #              
+            #              logger.debug(f"Forced Yes/No options for forward field {f_id} (was missing or generic)")
 
             # 1. Force Fill Logic (Heuristic) - DISABLED to prevent overwriting user input/submission
             # This logic was causing issues where submitted values were being reverted to older variable values
@@ -1475,8 +1479,9 @@ def task_detail_view(request: HttpRequest, task_id: str):
         flowable_link = f"{base}/task-app/#/task/{task_id}"
 
     # Identify headlines (Logic applies to layout structure now)
-    if form_data:
-        _identify_headlines(form_data)
+    # DISABLED: User requested "fetch as it is in flowable".
+    # if form_data:
+    #    _identify_headlines(form_data)
 
     # Fetch users for assignment autocomplete
     flowable_users = get_flowable_users()
