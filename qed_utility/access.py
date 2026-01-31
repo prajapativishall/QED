@@ -1,6 +1,5 @@
-from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, List, Callable
 
 from django.contrib.auth.views import redirect_to_login
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -16,7 +15,7 @@ def _user_in_any_role(user) -> bool:
     return user.groups.filter(name__in=ALL_ROLES).exists()
 
 
-def _user_has_any_role(user, roles: list[str]) -> bool:
+def _user_has_any_role(user, roles: List[str]) -> bool:
     if not user or not user.is_authenticated:
         return False
     if user.is_superuser:

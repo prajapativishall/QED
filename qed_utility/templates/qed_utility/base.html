@@ -23,7 +23,7 @@
               <img src="{% static 'assets/qed_logo.png' %}" alt="QED Utility" class="logo-img" style="max-height: 40px; width: auto;" />
             </a>
             <div class="nav-links">
-              <a href="http://14.96.225.19:8080/flowable-ui/idm/#/login" class="nav-link" target="_blank" title="Go to Flowable IDM">QED</a>
+              <!-- <a href="http://14.96.225.19:8080/flowable-ui/idm/#/login" class="nav-link" target="_blank" title="Go to Flowable IDM">QED</a> -->
               <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a>
               <a href="{% url 'tasks' %}" class="nav-link {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">Tasks</a>
           <a href="#" id="startProcessBtn" class="nav-link" onclick="openStartModal(event)">Start Process</a>

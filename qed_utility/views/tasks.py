@@ -3,6 +3,7 @@ import logging
 import re
 from datetime import datetime
 from urllib.parse import quote
+from typing import Optional, Union, List, Dict, Tuple, Any
 
 import mysql.connector
 import requests
@@ -20,7 +21,7 @@ FLOWABLE_USER = os.getenv("FLOWABLE_USER")
 FLOWABLE_PASS = os.getenv("FLOWABLE_PASS")
 
 
-def _load_task_detail(user_id: str, task_id: str) -> dict | None:
+def _load_task_detail(user_id: str, task_id: str) -> Optional[dict]:
     with mysql.connector.connect(**DB_CONFIG) as conn:
         cursor = conn.cursor()
         
@@ -180,14 +181,16 @@ def _load_task_detail(user_id: str, task_id: str) -> dict | None:
         # Fetch content items
         content_items = []
         try:
+            # We check both PROC_INST_ID_ and TASK_ID_ to catch items uploaded to the task
+            # but not yet fully linked to the process, or vice versa.
             cursor.execute(
                 """
                 SELECT ID_, NAME_, MIME_TYPE_, CREATED_, CREATED_BY_, FIELD_
                 FROM ACT_CO_CONTENT_ITEM
-                WHERE PROC_INST_ID_ = %s
+                WHERE PROC_INST_ID_ = %s OR TASK_ID_ = %s
                 ORDER BY CREATED_ DESC
                 """,
-                (proc_inst_id,),
+                (proc_inst_id, t_id),
             )
             for c_id, c_name, c_mime, c_created, c_created_by, c_field in cursor.fetchall():
                 content_items.append({
@@ -217,7 +220,7 @@ def _load_task_detail(user_id: str, task_id: str) -> dict | None:
         }
 
 
-def _fetch_task_form(task_id: str) -> dict | None:
+def _fetch_task_form(task_id: str) -> Optional[dict]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
         return None
@@ -237,7 +240,7 @@ def _fetch_task_form(task_id: str) -> dict | None:
         return None
 
 
-def _fetch_historic_task_form(task_id: str) -> dict | None:
+def _fetch_historic_task_form(task_id: str) -> Optional[dict]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
         return None
@@ -258,8 +261,8 @@ def _fetch_historic_task_form(task_id: str) -> dict | None:
 
 
 def _submit_task_form(
-    task_id: str, fields: list[dict], outcome: str | None = None
-) -> tuple[bool, str]:
+    task_id: str, fields: List[dict], outcome: Optional[str] = None
+) -> Tuple[bool, str]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
         return False, "Flowable base URL is not configured"
@@ -339,7 +342,7 @@ def _submit_task_form(
         return False, str(e)
 
 
-def _fetch_process_definitions() -> list[dict]:
+def _fetch_process_definitions() -> List[dict]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
         return []
@@ -360,7 +363,7 @@ def _fetch_process_definitions() -> list[dict]:
         return []
 
 
-def _fetch_process_definition_details(process_definition_id: str) -> dict | None:
+def _fetch_process_definition_details(process_definition_id: str) -> Optional[dict]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
         return None
@@ -381,7 +384,7 @@ def _fetch_process_definition_details(process_definition_id: str) -> dict | None
         return None
 
 
-def _fetch_start_form(process_definition_id: str) -> dict | None:
+def _fetch_start_form(process_definition_id: str) -> Optional[dict]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
         return None
@@ -404,10 +407,10 @@ def _fetch_start_form(process_definition_id: str) -> dict | None:
 
 def _submit_start_form(
     process_definition_id: str,
-    fields: list[dict] | None = None,
-    outcome: str | None = None,
-    user_id: str | None = None,
-) -> tuple[bool, str, str | None]:
+    fields: Optional[List[dict]] = None,
+    outcome: Optional[str] = None,
+    user_id: Optional[str] = None,
+) -> Tuple[bool, str, Optional[str]]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
         return False, "Flowable base URL is not configured", None
@@ -568,7 +571,7 @@ def task_detail_api(request: HttpRequest, task_id: str) -> JsonResponse:
     return JsonResponse(detail)
 
 
-def _fetch_form_model_layout(task_id: str, form_def_id: str | None = None) -> dict | None:
+def _fetch_form_model_layout(task_id: str, form_def_id: Optional[str] = None) -> Optional[dict]:
     """
     Fetches the form model (layout) for a task using the Flowable Form API.
     Returns the JSON model containing rows/cols/fields structure.
@@ -717,53 +720,53 @@ def _populate_model_values(model: dict, values_map: dict):
                          
                          logger.debug(f"Forced Yes/No options for forward field {f_id} (was missing or generic)")
 
-            # --- FORCE FILL LOGIC FOR KNOWN FIELDS (Values Only) ---
-            # Restoring heuristic mapping for values to fix "blank fields" issue.
-            # We strictly DO NOT touch 'options' here to avoid "unnecessary options" bug.
-            if not field.get("value") and f_id:
-                fid_lower = f_id.lower()
+            # 1. Force Fill Logic (Heuristic) - DISABLED to prevent overwriting user input/submission
+            # This logic was causing issues where submitted values were being reverted to older variable values
+            # found in the process context.
+            # if not field.get("value") and f_id:
+            #     fid_lower = f_id.lower()
                 
-                # Circle
-                if "circle" in fid_lower:
-                    if "circle" in normalized_map:
-                        field["value"] = normalized_map["circle"]
-                        logger.debug(f"Heuristic match: {f_id} -> circle = {field['value']}")
+            #     # Circle
+            #     if "circle" in fid_lower:
+            #         if "circle" in normalized_map:
+            #             field["value"] = normalized_map["circle"]
+            #             logger.debug(f"Heuristic match: {f_id} -> circle = {field['value']}")
                 
-                # Client
-                elif "client" in fid_lower:
-                    for v_name in ["client", "clientname", "customer", "vendor"]:
-                        if v_name in normalized_map:
-                            field["value"] = normalized_map[v_name]
-                            logger.debug(f"Heuristic match: {f_id} -> {v_name} = {field['value']}")
-                            break
+            #     # Client
+            #     elif "client" in fid_lower:
+            #         for v_name in ["client", "clientname", "customer", "vendor"]:
+            #             if v_name in normalized_map:
+            #                 field["value"] = normalized_map[v_name]
+            #                 logger.debug(f"Heuristic match: {f_id} -> {v_name} = {field['value']}")
+            #                 break
                             
-                # Date (Allotment/Survey)
-                elif "date" in fid_lower:
-                    # Refined Heuristic: Match specific date types
-                    target_vars = []
-                    if "survey" in fid_lower:
-                        # Avoid aggressive matching like "actualsurveydate" for "surveydatereceived"
-                        target_vars = ["surveydate"] 
-                    elif "allotment" in fid_lower or "allocation" in fid_lower:
-                        target_vars = ["allotmentdate", "allocationdate"]
-                    else:
-                        # Fallback for generic "Date" fields? Maybe safer to do nothing or check generic names
-                        target_vars = ["date"]
+            #     # Date (Allotment/Survey)
+            #     elif "date" in fid_lower:
+            #         # Refined Heuristic: Match specific date types
+            #         target_vars = []
+            #         if "survey" in fid_lower:
+            #             # Avoid aggressive matching like "actualsurveydate" for "surveydatereceived"
+            #             target_vars = ["surveydate"] 
+            #         elif "allotment" in fid_lower or "allocation" in fid_lower:
+            #             target_vars = ["allotmentdate", "allocationdate"]
+            #         else:
+            #             # Fallback for generic "Date" fields? Maybe safer to do nothing or check generic names
+            #             target_vars = ["date"]
 
-                    for v_name in target_vars:
-                        if v_name in normalized_map:
-                            field["value"] = normalized_map[v_name]
-                            logger.debug(f"Heuristic match: {f_id} -> {v_name} = {field['value']}")
-                            break
+            #         for v_name in target_vars:
+            #             if v_name in normalized_map:
+            #                 field["value"] = normalized_map[v_name]
+            #                 logger.debug(f"Heuristic match: {f_id} -> {v_name} = {field['value']}")
+            #                 break
 
-                # Activity Type
-                elif "activity" in fid_lower:
-                    if "activitytype" in normalized_map:
-                         field["value"] = normalized_map["activitytype"]
-                         logger.debug(f"Heuristic match: {f_id} -> activitytype = {field['value']}")
-                    elif "activity" in normalized_map:
-                         field["value"] = normalized_map["activity"]
-                         logger.debug(f"Heuristic match: {f_id} -> activity = {field['value']}")
+            #     # Activity Type
+            #     elif "activity" in fid_lower:
+            #         if "activitytype" in normalized_map:
+            #              field["value"] = normalized_map["activitytype"]
+            #              logger.debug(f"Heuristic match: {f_id} -> activitytype = {field['value']}")
+            #         elif "activity" in normalized_map:
+            #              field["value"] = normalized_map["activity"]
+            #              logger.debug(f"Heuristic match: {f_id} -> activity = {field['value']}")
 
             # -----------------------------------------
 
@@ -936,7 +939,7 @@ def _populate_model_values(model: dict, values_map: dict):
                     process_fields(col["fields"])
 
 
-def _claim_task(task_id: str, user_id: str) -> tuple[bool, str]:
+def _claim_task(task_id: str, user_id: str) -> Tuple[bool, str]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
         return False, "Flowable base URL is not configured"
@@ -1452,7 +1455,7 @@ def task_detail_view(request: HttpRequest, task_id: str):
     )
 
 
-def _identify_headlines(data: list[dict] | dict):
+def _identify_headlines(data: Union[List[dict], dict]):
     """
     Scans fields and identifies text fields that are serving as headlines/labels
     for subsequent boolean fields. Changes their type to 'header'.
@@ -1506,7 +1509,7 @@ def _identify_headlines(data: list[dict] | dict):
 
 
 
-def _upload_content_item(task_id: str, field_id: str, file_obj) -> tuple[bool, str, str | None]:
+def _upload_content_item(task_id: str, field_id: str, file_obj) -> Tuple[bool, str, Optional[str]]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
         return False, "Flowable URL not configured", None
@@ -1520,7 +1523,7 @@ def _upload_content_item(task_id: str, field_id: str, file_obj) -> tuple[bool, s
         data = {
             'name': file_obj.name,
             'taskId': task_id,
-            # 'field': field_id  # Removing 'field' as it's likely causing 400 and not standard
+            'field': field_id  # Restored field param to ensure proper filtering in UI
         }
         
         r = requests.post(
@@ -1600,7 +1603,7 @@ def view_content_view(request: HttpRequest, content_id: str):
     )
 
 
-def _fetch_content_metadata(content_id: str) -> dict | None:
+def _fetch_content_metadata(content_id: str) -> Optional[dict]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
         return None
