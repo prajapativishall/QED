@@ -87,7 +87,7 @@
         </label>
         <div class="radio-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
             {% for opt in field.options %}
-            {% with opt_name=opt.name|stringformat:"s"|lower|cut:" "  opt_id=opt.id|stringformat:"s"|lower|cut:" "  field_val=field.value|stringformat:"s"|lower|cut:" " %}
+            {% with opt_name=opt.name|default_if_none:""|stringformat:"s"|lower|cut:" "  opt_id=opt.id|default_if_none:""|stringformat:"s"|lower|cut:" "  field_val=field.value|default_if_none:""|stringformat:"s"|lower|cut:" " %}
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="{{ field.id }}" id="{{ field.id }}_{{ opt.id }}" value="{{ opt.id }}"
                 {% if opt_name == field_val or opt_id == field_val %}checked{% endif %}
@@ -115,7 +115,7 @@
         <select id="{{ field.id }}" name="{{ field.id }}" class="form-control" {% if field.readOnly or task.status == "Completed" %}disabled{% endif %} {% if field.required %}required{% endif %}>
             <option value="">Select...</option>
             {% for opt in field.options %}
-            {% with opt_name=opt.name|stringformat:"s"|lower|cut:" "  opt_id=opt.id|stringformat:"s"|lower|cut:" "  field_val=field.value|stringformat:"s"|lower|cut:" " %}
+            {% with opt_name=opt.name|default_if_none:""|stringformat:"s"|lower|cut:" "  opt_id=opt.id|default_if_none:""|stringformat:"s"|lower|cut:" "  field_val=field.value|default_if_none:""|stringformat:"s"|lower|cut:" " %}
             <option value="{{ opt.name }}" {% if opt_name == field_val or opt_id == field_val %}selected{% endif %}>{{ opt.name }}</option>
             {% endwith %}
             {% endfor %}

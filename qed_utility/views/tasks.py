@@ -290,6 +290,9 @@ def _submit_task_form(
         "variables": variables
     }
 
+    first_error_msg = ""
+    first_error_code = 0
+
     try:
         r = requests.post(
             url_runtime,
@@ -302,9 +305,14 @@ def _submit_task_form(
             return True, ""
             
         # If runtime/tasks fails, log and fall back to Form API
+        first_error_code = r.status_code
+        first_error_msg = r.text
+        print(f"DEBUG: Runtime task completion failed with {r.status_code}: {r.text}")
         logger.warning(f"Runtime task completion failed with {r.status_code}: {r.text}. Trying Form API fallback.")
         
     except requests.RequestException as e:
+        first_error_msg = str(e)
+        print(f"DEBUG: Error submitting task via runtime API: {e}")
         logger.error(f"Error submitting task via runtime API: {e}")
         # Continue to fallback
     
@@ -335,6 +343,30 @@ def _submit_task_form(
                 auth=(FLOWABLE_USER, FLOWABLE_PASS),
                 timeout=30,
              )
+
+        if r.status_code == 404 and first_error_msg:
+            # If both fallbacks failed with 404, it's likely the endpoints don't exist OR the task is already completed.
+            
+            # Check if task is already completed in history
+            try:
+                # We can reuse _load_task_detail logic but simplified or just query history API
+                # But we don't have user_id here easily. Let's just use SQL or API.
+                # Since _load_task_detail uses SQL and we are in the same file, we could use that?
+                # No, _load_task_detail is complex. Let's use a quick SQL check if possible, or API.
+                # API is cleaner for "is it completed?".
+                
+                # Check history API
+                hist_url = f"{base}/process-api/history/historic-task-instances/{task_id}"
+                h_r = requests.get(hist_url, auth=(FLOWABLE_USER, FLOWABLE_PASS), timeout=10)
+                if h_r.status_code == 200:
+                    h_data = h_r.json()
+                    if h_data.get("endTime"):
+                        return False, "Task was already completed."
+            except Exception as e:
+                logger.error(f"Error checking task history on failure: {e}")
+
+            # Return the original error from Strategy 1 which is more likely the real issue.
+            return False, f"Task completion failed (Runtime: {first_error_code} - {first_error_msg})"
 
         r.raise_for_status()
         return True, ""
@@ -662,10 +694,11 @@ def _populate_model_values(model: dict, values_map: dict):
              values_map[k] = v_str # Update original map too for direct lookups
              v = v_str
 
-        k_lower = k.lower()
-        normalized_map[k_lower] = v
+        # STRICT MODE: Disable fuzzy/normalized maps to match Flowable behavior
+        # k_lower = k.lower()
+        # normalized_map[k_lower] = v
         # Update fuzzy map to strip spaces too
-        fuzzy_map[k_lower.replace("_", "").replace("-", "").replace(" ", "")] = v
+        # fuzzy_map[k_lower.replace("_", "").replace("-", "").replace(" ", "")] = v
 
     # Helper to process a list of fields
     def process_fields(field_list):
@@ -790,44 +823,47 @@ def _populate_model_values(model: dict, values_map: dict):
                     val_found = True
                     logger.debug(f"Mapped {f_id} (exact) -> {values_map[f_id]}")
             # 1b. Case-insensitive fallback
-            elif f_id and f_id.lower() in normalized_map:
-                if safe_set_value(normalized_map[f_id.lower()]):
-                    val_found = True
-                    logger.debug(f"Mapped {f_id} (case-insensitive) -> {normalized_map[f_id.lower()]}")
+            # STRICT MODE: Disabled to prevent partial matches
+            # elif f_id and f_id.lower() in normalized_map:
+            #    if safe_set_value(normalized_map[f_id.lower()]):
+            #        val_found = True
+            #        logger.debug(f"Mapped {f_id} (case-insensitive) -> {normalized_map[f_id.lower()]}")
             # 1c. Fuzzy fallback (strip _ and - and SPACES)
-            elif f_id:
-                clean_id = f_id.lower().replace("_", "").replace("-", "").replace(" ", "")
-                # Try finding exact fuzzy match
-                if clean_id in fuzzy_map:
-                    if safe_set_value(fuzzy_map[clean_id]):
-                        val_found = True
-                        logger.debug(f"Mapped {f_id} (fuzzy) -> {fuzzy_map[clean_id]}")
+            # STRICT MODE: Disabled to prevent unwanted matches
+            # elif f_id:
+            #    clean_id = f_id.lower().replace("_", "").replace("-", "").replace(" ", "")
+            #    # Try finding exact fuzzy match
+            #    if clean_id in fuzzy_map:
+            #        if safe_set_value(fuzzy_map[clean_id]):
+            #            val_found = True
+            #            logger.debug(f"Mapped {f_id} (fuzzy) -> {fuzzy_map[clean_id]}")
                 # Try relaxed heuristic: does any variable name contain this ID (or vice versa)?
                 # Only if we haven't found a value yet
-                elif not field.get("value"):
-                    # Check if any fuzzy variable key is a substring of clean_id or vice versa
-                    # This is expensive but might solve "Client Name" vs "client"
-                    for fz_key, fz_val in fuzzy_map.items():
-                         if len(fz_key) > 3 and (fz_key in clean_id or clean_id in fz_key):
-                             field["value"] = fz_val
-                             val_found = True
-                             logger.debug(f"Mapped {f_id} (relaxed fuzzy) -> {fz_val} (match: {fz_key})")
-                             break
+                # DISABLED: Too aggressive, causing false positives (e.g. 'state' matching 'statement')
+                # elif not field.get("value"):
+                #    # Check if any fuzzy variable key is a substring of clean_id or vice versa
+                #    # This is expensive but might solve "Client Name" vs "client"
+                #    for fz_key, fz_val in fuzzy_map.items():
+                #         if len(fz_key) > 3 and (fz_key in clean_id or clean_id in fz_key):
+                #             field["value"] = fz_val
+                #             val_found = True
+                #             logger.debug(f"Mapped {f_id} (relaxed fuzzy) -> {fz_val} (match: {fz_key})")
+                #             break
 
             # --- CRITICAL: Ensure Value is in Options (for Dropdowns) ---
             # If the value is not in the options, it MUST be added for the dropdown to show it.
             # We strictly limit this to dropdown/select types to avoid polluting other fields.
             # UPDATE: User reported "unknown options". Disabling auto-append to prevent garbage values
             # from appearing as valid options.
-            # if field.get("type") in ["dropdown", "select", "radio-buttons"]:
-            #    if field.get("options") and field.get("value"):
-            #        curr_val = str(field["value"]).strip().lower()
-            #        options_vals = [str(opt.get("name", "")).strip().lower() for opt in field["options"]]
-            #        options_ids = [str(opt.get("id", "")).strip().lower() for opt in field["options"]]
-            #        
-            #        if curr_val not in options_vals and curr_val not in options_ids:
-            #            print(f"DEBUG: Value '{field['value']}' not in options for {f_id}. Appending it.")
-            #            field["options"].append({"name": field["value"], "id": field["value"]})
+            if field.get("type") in ["dropdown", "select", "radio-buttons"]:
+               if field.get("options") and field.get("value"):
+                   curr_val = str(field["value"]).strip().lower()
+                   options_vals = [str(opt.get("name", "")).strip().lower() for opt in field["options"]]
+                   options_ids = [str(opt.get("id", "")).strip().lower() for opt in field["options"]]
+                   
+                   if curr_val not in options_vals and curr_val not in options_ids:
+                       # print(f"DEBUG: Value '{field['value']}' not in options for {f_id}. Appending it.")
+                       field["options"].append({"name": field["value"], "id": field["value"]})
             
             # Debug "Forward" field options source
             if "forward" in fid_lower or "outcome" in fid_lower:
@@ -1225,6 +1261,10 @@ def task_detail_view(request: HttpRequest, task_id: str):
     if flat_form_data and "fields" in flat_form_data:
         print(f"DEBUG: Processing {len(flat_form_data['fields'])} flat fields for values...")
         for f in flat_form_data["fields"]:
+            # Fix for Flowable returning string "None" for empty values
+            if f.get("value") == "None":
+                f["value"] = None
+
             f_id = f.get("id")
             val = f.get("value")
             f_type = f.get("type", "").lower()
@@ -1573,15 +1613,22 @@ def view_content_view(request: HttpRequest, content_id: str):
         # If metadata fetch fails, just redirect to stream (fallback)
         return stream_content_view(request, content_id)
 
-    mime_type = meta.get("mimeType", "")
+    mime_type = meta.get("mimeType") or ""
     name = meta.get("name", "Document")
     
+    # If mime_type is missing or generic, try to guess from filename
+    if not mime_type or mime_type == "application/octet-stream":
+        import mimetypes
+        guessed_type, _ = mimetypes.guess_type(name)
+        if guessed_type:
+            mime_type = guessed_type
+
     file_type = "unknown"
     if mime_type == "application/pdf":
         file_type = "pdf"
     elif mime_type.startswith("image/"):
         file_type = "image"
-    elif mime_type.startswith("text/"):
+    elif mime_type.startswith("text/") or mime_type == "application/json":
         file_type = "text"
 
     is_viewable = file_type in ["pdf", "image", "text"]
