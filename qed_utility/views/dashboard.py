@@ -1,9 +1,10 @@
 import os
 import mysql.connector
 from datetime import datetime
-from django.http import JsonResponse
-from django.shortcuts import render
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.db import connection
 
 # ---------------- CONFIG ----------------
 CIRCLE_LIST = [
@@ -351,13 +352,52 @@ def get_user_task_stats(user_id, site_id=None, activity_type=None):
 # ------------------------------------------------
 # VIEWS
 # ------------------------------------------------
+def get_dashboard_permissions(user):
+    user_groups = [g.lower() for g in user.groups.values_list('name', flat=True)]
+    
+    is_admin = user.is_superuser or "admin" in user_groups
+    
+    # Robust check for role names (with/without spaces)
+    is_design_coord = "design coordinator" in user_groups or "designcoordinator" in user_groups
+    
+    # "Circle Head" treated as Circle Coordinator
+    is_circle_coord = (
+        "circle coordinator" in user_groups or 
+        "circlecoordinator" in user_groups or 
+        "circle head" in user_groups
+    )
+    
+    has_lead = any("lead" in g for g in user_groups)
+    has_checker = any("checker" in g for g in user_groups)
+    
+    can_view_survey = is_admin or is_design_coord or has_lead or has_checker or is_circle_coord
+    can_view_design = is_admin or is_design_coord or has_lead or has_checker
+    can_view_user_tasks = is_admin or is_design_coord
+    
+    return {
+        "show_survey": can_view_survey,
+        "show_design": can_view_design,
+        "show_user_tasks": can_view_user_tasks,
+        "has_access": can_view_survey
+    }
+
 @login_required
 def dashboard_view(request):
+    perms = get_dashboard_permissions(request.user)
+    
+    if not perms["has_access"]:
+        # Redirect unauthorized users to the Tasks module instead of 403
+        return redirect("tasks")
+        
+    show_survey = perms["show_survey"]
+    show_design = perms["show_design"]
+    show_user_tasks = perms["show_user_tasks"]
+
     default_start = "2025-09-01"
     default_end = datetime.today().strftime("%Y-%m-%d")
 
-    circle_stats = get_circle_head_summary(default_start, default_end, "", "")
-    design_stats = get_design_team_summary(default_start, default_end, "", "")
+    circle_stats = get_circle_head_summary(default_start, default_end, "", "") if show_survey else {}
+    design_stats = get_design_team_summary(default_start, default_end, "", "") if show_design else {}
 
     return render(
         request,
@@ -369,12 +409,18 @@ def dashboard_view(request):
             "design_stats": design_stats,
             "default_start": default_start,
             "default_end": default_end,
+            "show_survey": show_survey,
+            "show_design": show_design,
+            "show_user_tasks": show_user_tasks,
         }
     )
 
 
 @login_required
 def api_ch_summary(request):
+    if not get_dashboard_permissions(request.user)["show_survey"]:
+        return JsonResponse({"error": "Forbidden"}, status=403)
+        
     start = request.GET.get("ch_start", "2025-09-01")
     end = request.GET.get("ch_end", datetime.today().strftime("%Y-%m-%d"))
     circle = request.GET.get("ch_circle", "")
@@ -385,6 +431,9 @@ def api_ch_summary(request):
 
 @login_required
 def api_dt_summary(request):
+    if not get_dashboard_permissions(request.user)["show_design"]:
+        return JsonResponse({"error": "Forbidden"}, status=403)
+        
     start = request.GET.get("dt_start", "2025-09-01")
     end = request.GET.get("dt_end", datetime.today().strftime("%Y-%m-%d"))
     circle = request.GET.get("dt_circle", "")
@@ -395,32 +444,45 @@ def api_dt_summary(request):
 
 @login_required
 def api_flowable_users(request):
+    if not get_dashboard_permissions(request.user)["show_user_tasks"]:
+        return JsonResponse([], safe=False)
     return JsonResponse(get_flowable_users(), safe=False)
 
 
 @login_required
 def api_flowable_groups(request):
+    if not get_dashboard_permissions(request.user)["show_user_tasks"]:
+        return JsonResponse([], safe=False)
     return JsonResponse(get_flowable_groups(), safe=False)
 
 
 @login_required
 def api_user_activity_sites(request):
+    if not get_dashboard_permissions(request.user)["show_user_tasks"]:
+        return JsonResponse([], safe=False)
     user_id = request.GET.get("user", "")
     return JsonResponse(get_user_activity_sites(user_id), safe=False)
 
 
 @login_required
 def api_activity_types(request):
+    if not get_dashboard_permissions(request.user)["show_user_tasks"]:
+        return JsonResponse([], safe=False)
     return JsonResponse(get_unique_activity_types(), safe=False)
 
 
 @login_required
 def api_site_ids(request):
+    if not get_dashboard_permissions(request.user)["show_user_tasks"]:
+        return JsonResponse([], safe=False)
     return JsonResponse(get_unique_site_ids(), safe=False)
 
 
 @login_required
 def api_user_tasks(request):
+    if not get_dashboard_permissions(request.user)["show_user_tasks"]:
+        return JsonResponse({"error": "Forbidden"}, status=403)
+        
     user_id = request.GET.get("user", "")
     site_id = request.GET.get("site", "")
     activity_type = request.GET.get("activity", "")

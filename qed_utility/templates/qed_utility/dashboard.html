@@ -401,6 +401,7 @@
 <section class="dashboard-panels">
 
   <!-- ================= SURVEY DASHBOARD ================= -->
+  {% if show_survey %}
   <div class="dashboard-card">
     <h3>Survey Dashboard</h3>
 
@@ -413,13 +414,13 @@
         <div class="legend-item"><span class="dot completed"></span> Completed <strong id="chCompleted">{{ circle_stats.Completed }}</strong></div>
       </div>
       
-      <div id="chFlagDiv" class="dashboard-flag" style="display: {{ circle_stats.Flag|yesno:'block,none' }};">
-        ⚑ Allocation Date Missing: <strong id="chFlag">{{ circle_stats.Flag }}</strong>
-      </div>
+      
     </div>
   </div>
+  {% endif %}
 
   <!-- ================= DESIGN DASHBOARD ================= -->
+  {% if show_design %}
   <div class="dashboard-card">
     <h3>Design Dashboard</h3>
 
@@ -433,10 +434,12 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
 </section>
 
 <!-- User Activity Section -->
+{% if show_user_tasks %}
 <section class="user-activity-dashboard">
     <div class="user-search-container">
         <h3>User Task Dashboard</h3>
@@ -491,4 +494,5 @@
         </div>
     </div>
 </section>
+{% endif %}
 {% endblock %}

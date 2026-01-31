@@ -264,7 +264,48 @@ def _submit_task_form(
     if not base:
         return False, "Flowable base URL is not configured"
     
-    # Use process-api instead of form-api to ensure compatibility with standard Flowable UI/REST
+    # Strategy 1: Use standard Process Engine Runtime API (Task Action)
+    # This is generally more robust for completing tasks and avoids Form Engine 500 errors.
+    url_runtime = f"{base}/process-api/runtime/tasks/{task_id}"
+    
+    # Convert fields (id, value) to variables (name, value)
+    variables = []
+    if fields:
+        for f in fields:
+            variables.append({
+                "name": f["id"],
+                "value": f["value"]
+            })
+    
+    # If outcome is present, pass it as a variable
+    if outcome:
+        variables.append({"name": "form_outcome", "value": outcome})
+        variables.append({"name": "outcome", "value": outcome})
+
+    payload_runtime = {
+        "action": "complete",
+        "variables": variables
+    }
+
+    try:
+        r = requests.post(
+            url_runtime,
+            json=payload_runtime,
+            auth=(FLOWABLE_USER, FLOWABLE_PASS),
+            timeout=30,
+        )
+        
+        if r.status_code == 200 or r.status_code == 204:
+            return True, ""
+            
+        # If runtime/tasks fails, log and fall back to Form API
+        logger.warning(f"Runtime task completion failed with {r.status_code}: {r.text}. Trying Form API fallback.")
+        
+    except requests.RequestException as e:
+        logger.error(f"Error submitting task via runtime API: {e}")
+        # Continue to fallback
+    
+    # Strategy 2: Use Form API (original method) - Fallback
     url = f"{base}/process-api/form/form-data"
     
     payload = {
@@ -1261,13 +1302,16 @@ def task_detail_view(request: HttpRequest, task_id: str):
         
         # 1. Handle File Uploads first
         upload_errors = []
+        uploaded_values = {}
         for key, file_obj in request.FILES.items():
             if key.startswith("upload_"):
                 # Extract field ID from "upload_{field_id}"
                 field_id = key[7:] 
-                ok, err = _upload_content_item(task_id, field_id, file_obj)
+                ok, err, content_id = _upload_content_item(task_id, field_id, file_obj)
                 if not ok:
                     upload_errors.append(f"Error uploading {file_obj.name}: {err}")
+                elif content_id:
+                    uploaded_values[field_id] = content_id
         
         if upload_errors:
              submit_error = "; ".join(upload_errors)
@@ -1306,8 +1350,28 @@ def task_detail_view(request: HttpRequest, task_id: str):
                 if field.get("type") == "boolean":
                     val = request.POST.get(field_id)
                     value = "true" if val else "false"
+                elif field_id in uploaded_values:
+                    # If we uploaded a file for this field, use the content ID as value
+                    value = uploaded_values[field_id]
                 else:
                     value = request.POST.get(field_id, "")
+                    
+                    # Sanitize Date Format (YYYY-MM-DD)
+                    if field.get("type") == "date" and value:
+                        try:
+                            # Handle 2026-1-31 -> 2026-01-31
+                            value = value.strip()
+                            # Common formats
+                            for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y"]:
+                                try:
+                                    dt = datetime.strptime(value, fmt)
+                                    # Ensure strict YYYY-MM-DD
+                                    value = dt.strftime("%Y-%m-%d")
+                                    break
+                                except ValueError:
+                                    continue
+                        except Exception:
+                            pass
                 
                 properties.append({"id": field_id, "value": value})
             
@@ -1442,10 +1506,10 @@ def _identify_headlines(data: list[dict] | dict):
 
 
 
-def _upload_content_item(task_id: str, field_id: str, file_obj) -> tuple[bool, str]:
+def _upload_content_item(task_id: str, field_id: str, file_obj) -> tuple[bool, str, str | None]:
     base = FLOWABLE_BASE.rstrip("/")
     if not base:
-        return False, "Flowable URL not configured"
+        return False, "Flowable URL not configured", None
     
     # Use content-service to upload
     url = f"{base}/content-api/content-service/content-items"
@@ -1454,8 +1518,9 @@ def _upload_content_item(task_id: str, field_id: str, file_obj) -> tuple[bool, s
         # 'file' is the key expected by Flowable
         files = {'file': (file_obj.name, file_obj, file_obj.content_type)}
         data = {
+            'name': file_obj.name,
             'taskId': task_id,
-            'field': field_id
+            # 'field': field_id  # Removing 'field' as it's likely causing 400 and not standard
         }
         
         r = requests.post(
@@ -1465,11 +1530,18 @@ def _upload_content_item(task_id: str, field_id: str, file_obj) -> tuple[bool, s
             auth=(FLOWABLE_USER, FLOWABLE_PASS),
             timeout=60
         )
+        
+        if r.status_code >= 400:
+            logger.error(f"Upload failed: {r.status_code} - {r.text}")
+            return False, f"Upload failed: {r.status_code}", None
+
         r.raise_for_status()
-        return True, ""
+        resp_data = r.json()
+        content_id = resp_data.get("id")
+        return True, "", content_id
     except Exception as e:
-        print(f"Error uploading content: {e}")
-        return False, str(e)
+        logger.error(f"Error uploading content: {e}")
+        return False, str(e), None
 
 
 @login_required
