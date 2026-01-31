@@ -1,4 +1,5 @@
 import os
+import logging
 import re
 from datetime import datetime
 from urllib.parse import quote
@@ -11,6 +12,8 @@ from django.shortcuts import render, redirect
 
 from qed_utility.views.dashboard import get_user_task_stats, DB_CONFIG, get_user_groups, get_flowable_users, CIRCLE_LIST, ACTIVITY_LIST
 
+
+logger = logging.getLogger(__name__)
 
 FLOWABLE_BASE = os.getenv("FLOWABLE_BASE") or ""
 FLOWABLE_USER = os.getenv("FLOWABLE_USER")
@@ -140,7 +143,7 @@ def _load_task_detail(user_id: str, task_id: str) -> dict | None:
                             dt = datetime.fromtimestamp(timestamp / 1000.0)
                             value = dt.strftime("%Y-%m-%d")
                 except Exception as e:
-                    print(f"Error parsing serializable variable {v_name}: {e}")
+                    logger.error(f"Error parsing serializable variable {v_name}: {e}")
             
             if value is None:
                 if v_text is not None:
@@ -196,7 +199,7 @@ def _load_task_detail(user_id: str, task_id: str) -> dict | None:
                     "field": c_field
                 })
         except Exception as e:
-            print(f"Error fetching content items: {e}")
+            logger.error(f"Error fetching content items: {e}")
 
         status = "Completed" if end_time else "Pending"
         return {
@@ -230,7 +233,7 @@ def _fetch_task_form(task_id: str) -> dict | None:
         r.raise_for_status()
         return r.json()
     except requests.RequestException as e:
-        print(f"Error fetching form data for task {task_id}: {e}")
+        logger.error(f"Error fetching form data for task {task_id}: {e}")
         return None
 
 
@@ -250,7 +253,7 @@ def _fetch_historic_task_form(task_id: str) -> dict | None:
         r.raise_for_status()
         return r.json()
     except requests.RequestException as e:
-        print(f"Error fetching historic form data for task {task_id}: {e}")
+        logger.error(f"Error fetching historic form data for task {task_id}: {e}")
         return None
 
 
@@ -312,7 +315,7 @@ def _fetch_process_definitions() -> list[dict]:
         data = r.json()
         return data.get("data", [])
     except requests.RequestException as e:
-        print(f"Error fetching process definitions: {e}")
+        logger.error(f"Error fetching process definitions: {e}")
         return []
 
 
@@ -333,7 +336,7 @@ def _fetch_process_definition_details(process_definition_id: str) -> dict | None
         r.raise_for_status()
         return r.json()
     except requests.RequestException as e:
-        print(f"Error fetching process definition details {process_definition_id}: {e}")
+        logger.error(f"Error fetching process definition details {process_definition_id}: {e}")
         return None
 
 
@@ -354,7 +357,7 @@ def _fetch_start_form(process_definition_id: str) -> dict | None:
         r.raise_for_status()
         return r.json()
     except requests.RequestException as e:
-        print(f"Error fetching start form for process {process_definition_id}: {e}")
+        logger.error(f"Error fetching start form for process {process_definition_id}: {e}")
         return None
 
 
@@ -450,7 +453,7 @@ def _submit_start_form(
                                  timeout=10
                              )
             except Exception as e:
-                print(f"Error during process start fixup: {e}")
+                logger.error(f"Error during process start fixup: {e}")
 
         return True, "", pid
     except requests.RequestException as e:
@@ -589,7 +592,7 @@ def _fetch_form_model_layout(task_id: str, form_def_id: str | None = None) -> di
                     return r_model.json()
                 
     except Exception as e:
-        print(f"Error fetching form model layout for task {task_id}: {e}")
+        logger.error(f"Error fetching form model layout for task {task_id}: {e}")
         
     return None
 
@@ -606,7 +609,7 @@ def _populate_model_values(model: dict, values_map: dict):
     normalized_map = {}
     fuzzy_map = {}
     
-    print(f"DEBUG: values_map keys: {list(values_map.keys())}")
+    logger.debug(f"values_map keys: {list(values_map.keys())}")
     
     for k, v in values_map.items():
         # Handle dict values (if complex object) - Extract a useful string
@@ -630,7 +633,7 @@ def _populate_model_values(model: dict, values_map: dict):
             if f_id:
                 # Debug specific fields of interest
                 if "circle" in f_id.lower() or "client" in f_id.lower() or "date" in f_id.lower():
-                    print(f"DEBUG: Found relevant field ID: {f_id}, Type: {field.get('type')}, Current Value: {field.get('value')}")
+                    logger.debug(f"Found relevant field ID: {f_id}, Type: {field.get('type')}, Current Value: {field.get('value')}")
             
             # --- OPTIONS POPULATION (Strictly for Dropdowns) ---
             # Ensure options are populated for known dropdown fields if missing
@@ -640,7 +643,7 @@ def _populate_model_values(model: dict, values_map: dict):
             if field.get("type") in ["dropdown", "select", "radio-buttons"]:
                 if "circle" in fid_lower and ("options" not in field or not field["options"]):
                     field["options"] = [{"name": c, "id": c} for c in CIRCLE_LIST]
-                    print(f"DEBUG: Populated options for circle field {f_id}")
+                    logger.debug(f"Populated options for circle field {f_id}")
                 
                 elif "activity" in fid_lower and ("options" not in field or not field["options"]):
                     field["options"] = [{"name": c, "id": c} for c in ACTIVITY_LIST]
@@ -671,7 +674,7 @@ def _populate_model_values(model: dict, values_map: dict):
                          if "option 1" in str(field.get("value", "")).lower():
                              field["value"] = None
                          
-                         print(f"DEBUG: Forced Yes/No options for forward field {f_id} (was missing or generic)")
+                         logger.debug(f"Forced Yes/No options for forward field {f_id} (was missing or generic)")
 
             # --- FORCE FILL LOGIC FOR KNOWN FIELDS (Values Only) ---
             # Restoring heuristic mapping for values to fix "blank fields" issue.
@@ -683,14 +686,14 @@ def _populate_model_values(model: dict, values_map: dict):
                 if "circle" in fid_lower:
                     if "circle" in normalized_map:
                         field["value"] = normalized_map["circle"]
-                        print(f"DEBUG: Heuristic match: {f_id} -> circle = {field['value']}")
+                        logger.debug(f"Heuristic match: {f_id} -> circle = {field['value']}")
                 
                 # Client
                 elif "client" in fid_lower:
                     for v_name in ["client", "clientname", "customer", "vendor"]:
                         if v_name in normalized_map:
                             field["value"] = normalized_map[v_name]
-                            print(f"DEBUG: Heuristic match: {f_id} -> {v_name} = {field['value']}")
+                            logger.debug(f"Heuristic match: {f_id} -> {v_name} = {field['value']}")
                             break
                             
                 # Date (Allotment/Survey)
@@ -709,17 +712,17 @@ def _populate_model_values(model: dict, values_map: dict):
                     for v_name in target_vars:
                         if v_name in normalized_map:
                             field["value"] = normalized_map[v_name]
-                            print(f"DEBUG: Heuristic match: {f_id} -> {v_name} = {field['value']}")
+                            logger.debug(f"Heuristic match: {f_id} -> {v_name} = {field['value']}")
                             break
 
                 # Activity Type
                 elif "activity" in fid_lower:
                     if "activitytype" in normalized_map:
                          field["value"] = normalized_map["activitytype"]
-                         print(f"DEBUG: Heuristic match: {f_id} -> activitytype = {field['value']}")
+                         logger.debug(f"Heuristic match: {f_id} -> activitytype = {field['value']}")
                     elif "activity" in normalized_map:
                          field["value"] = normalized_map["activity"]
-                         print(f"DEBUG: Heuristic match: {f_id} -> activity = {field['value']}")
+                         logger.debug(f"Heuristic match: {f_id} -> activity = {field['value']}")
 
             # -----------------------------------------
 
@@ -741,12 +744,12 @@ def _populate_model_values(model: dict, values_map: dict):
             if f_id and f_id in values_map:
                 if safe_set_value(values_map[f_id]):
                     val_found = True
-                    print(f"DEBUG: Mapped {f_id} (exact) -> {values_map[f_id]}")
+                    logger.debug(f"Mapped {f_id} (exact) -> {values_map[f_id]}")
             # 1b. Case-insensitive fallback
             elif f_id and f_id.lower() in normalized_map:
                 if safe_set_value(normalized_map[f_id.lower()]):
                     val_found = True
-                    print(f"DEBUG: Mapped {f_id} (case-insensitive) -> {normalized_map[f_id.lower()]}")
+                    logger.debug(f"Mapped {f_id} (case-insensitive) -> {normalized_map[f_id.lower()]}")
             # 1c. Fuzzy fallback (strip _ and - and SPACES)
             elif f_id:
                 clean_id = f_id.lower().replace("_", "").replace("-", "").replace(" ", "")
@@ -754,7 +757,7 @@ def _populate_model_values(model: dict, values_map: dict):
                 if clean_id in fuzzy_map:
                     if safe_set_value(fuzzy_map[clean_id]):
                         val_found = True
-                        print(f"DEBUG: Mapped {f_id} (fuzzy) -> {fuzzy_map[clean_id]}")
+                        logger.debug(f"Mapped {f_id} (fuzzy) -> {fuzzy_map[clean_id]}")
                 # Try relaxed heuristic: does any variable name contain this ID (or vice versa)?
                 # Only if we haven't found a value yet
                 elif not field.get("value"):
@@ -764,7 +767,7 @@ def _populate_model_values(model: dict, values_map: dict):
                          if len(fz_key) > 3 and (fz_key in clean_id or clean_id in fz_key):
                              field["value"] = fz_val
                              val_found = True
-                             print(f"DEBUG: Mapped {f_id} (relaxed fuzzy) -> {fz_val} (match: {fz_key})")
+                             logger.debug(f"Mapped {f_id} (relaxed fuzzy) -> {fz_val} (match: {fz_key})")
                              break
 
             # --- CRITICAL: Ensure Value is in Options (for Dropdowns) ---
@@ -784,8 +787,8 @@ def _populate_model_values(model: dict, values_map: dict):
             
             # Debug "Forward" field options source
             if "forward" in fid_lower or "outcome" in fid_lower:
-                print(f"DEBUG: Field {f_id} (Forward?) Options: {field.get('options')}")
-                print(f"DEBUG: Field {f_id} Value: {field.get('value')}")
+                logger.debug(f"Field {f_id} (Forward?) Options: {field.get('options')}")
+                logger.debug(f"Field {f_id} Value: {field.get('value')}")
 
             # ------------------------------------------------------------
 
@@ -821,7 +824,7 @@ def _populate_model_values(model: dict, values_map: dict):
                     if content_key == "name":
                         field["value"] = new_content
                 except Exception as e:
-                    print(f"Error resolving expression for field {f_id}: {e}")
+                    logger.error(f"Error resolving expression for field {f_id}: {e}")
 
             # 3. Date Formatting
             # If it's a date field and we have a value, ensure it's YYYY-MM-DD
@@ -867,7 +870,7 @@ def _populate_model_values(model: dict, values_map: dict):
                                 if not formatted and " " in field["value"]:
                                      field["value"] = field["value"].split(" ")[0]
                     except Exception as e:
-                        print(f"Error formatting date for field {f_id}: {e}")
+                        logger.error(f"Error formatting date for field {f_id}: {e}")
                         pass
                 
             # Handle nested layouts if any (e.g. Container)
